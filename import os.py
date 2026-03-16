@@ -1,0 +1,25 @@
+import os
+from supabase import create_client
+
+# Manually setting environment variables since python-dotenv installation failed
+os.environ["SUPABASE_URL"] = "https://ulxfhbyvbjsivbpcmyim.supabase.co"
+os.environ["SUPABASE_KEY"] = "eyJhbGciOiJIUzI1NiIsImtpZCI6IjFYa0szS3lYVGxZcElPS2ciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3VseGZoYnl2YmpzaXZicGNteWltLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3MThkNjRkZC0wMDkwLTQwN2ItYjMzYS1lODMzYmFhOTZjMGYiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzczNjkwMjQ0LCJpYXQiOjE3NzM2ODY2NDQsImVtYWlsIjoicGVkcm90b2Rlc2NhbkBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlfSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3MzY4NjY0NH1dLCJzZXNzaW9uX2lkIjoiZDZjZDdlMDYtZmQyNy00NzQ3LTkwNDEtOGM3MDMxYjMyY2QzIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.jW6L37Lo-1NhH6Ws0qY47pA5btKH1-sIZuvUHNzP5LQ"
+os.environ["SUPABASE_AUTH_TOKEN"] = "eyJhbGciOiJIUzI1NiIsImtpZCI6IjFYa0szS3lYVGxZcElPS2ciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3VseGZoYnl2YmpzaXZicGNteWltLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3MThkNjRkZC0wMDkwLTQwN2ItYjMzYS1lODMzYmFhOTZjMGYiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzczNjkwMjQ0LCJpYXQiOjE3NzM2ODY2NDQsImVtYWlsIjoicGVkcm90b2Rlc2NhbkBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlfSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3MzY4NjY0NH1dLCJzZXNzaW9uX2lkIjoiZDZjZDdlMDYtZmQyNy00NzQ3LTkwNDEtOGM3MDMxYjMyY2QzIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.jW6L37Lo-1NhH6Ws0qY47pA5btKH1-sIZuvUHNzP5LQ"
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+AUTH_TOKEN = os.getenv("SUPABASE_AUTH_TOKEN")
+
+# Create client and set auth
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase.postgrest.auth(AUTH_TOKEN)
+
+try:
+    print(f"Attempting to fetch data from dataset_fidc...")
+    # Using limit(1) for a quick verification check
+    data = supabase.table("dataset_fidc").select("*").limit(1).execute()
+    print("Success!")
+    print(data.data)
+except Exception as e:
+    print(f"Error fetching data: {e}")
+
