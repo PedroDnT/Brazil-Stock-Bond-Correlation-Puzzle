@@ -83,10 +83,10 @@ def fetch_bcb_series(code, name, start="2004-01-01", end="2026-03-15", yrs=5):
 
 
 def fetch_bcb(start="2004-01-01"):
-    cache = RAW_DIR / "bcb_macro.parquet"
+    cache = RAW_DIR / "bcb_macro.csv"
     if cache.exists():
         print("  BCB: loaded from cache")
-        return pd.read_parquet(cache)
+        return pd.read_csv(cache, index_col=0, parse_dates=True)
     print("Fetching BCB macro series...")
     BCB_SERIES = {
         "cdi":          11,
@@ -106,26 +106,24 @@ def fetch_bcb(start="2004-01-01"):
     for col in ["ipca", "igpm", "selic_target"]:
         if col in bcb.columns:
             bcb[col] = bcb[col].ffill()
-    bcb.to_parquet(cache)
+    bcb.to_csv(cache)
     print(f"  BCB total: {len(bcb)} rows, {bcb.index[0].date()} to {bcb.index[-1].date()}")
     return bcb
 
 
 # ── Ibovespa ─────────────────────────────────────────────────────────────────
 def fetch_ibovespa(start="2004-01-01"):
-    cache = RAW_DIR / "ibovespa.parquet"
+    cache = RAW_DIR / "ibovespa.csv"
     if cache.exists():
         print("  Ibovespa: loaded from cache")
-        return pd.read_parquet(cache)["ibov"]
+        return pd.read_csv(cache, index_col=0, parse_dates=True)["ibov"]
     print("Fetching Ibovespa (^BVSP)...")
     raw  = yf.download("^BVSP", start=start, progress=False, auto_adjust=True)
-    # yfinance may return MultiIndex columns — flatten
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
     ibov = raw["Close"].squeeze().rename("ibov").dropna()
     ibov.index = pd.DatetimeIndex(ibov.index).tz_localize(None)
-    ibov.to_frame().to_parquet(cache)
-    print(f"  Ibovespa: {len(ibov)} rows, {ibov.index[0].date()} to {ibov.index[-1].date()}")
+    ibov.to_frame().to_csv(cache)
     return ibov
 
 
@@ -137,10 +135,10 @@ IMA_ETFS = {
 }
 
 def fetch_ima_etfs(start="2019-01-01"):
-    cache = RAW_DIR / "ima_etfs.parquet"
+    cache = RAW_DIR / "ima_etfs.csv"
     if cache.exists():
         print("  IMA ETFs: loaded from cache")
-        return pd.read_parquet(cache)
+        return pd.read_csv(cache, index_col=0, parse_dates=True)
     print("Fetching IMA ETF proxies...")
     frames = {}
     for name, ticker in IMA_ETFS.items():
@@ -148,93 +146,29 @@ def fetch_ima_etfs(start="2019-01-01"):
         if not raw.empty:
             if isinstance(raw.columns, pd.MultiIndex):
                 raw.columns = raw.columns.get_level_values(0)
-            s = raw["Close"].squeeze().rename(name).dropna()
+            s = raw["Close"].squeeze().dropna()
             s.index = pd.DatetimeIndex(s.index).tz_localize(None)
             frames[name] = s
-            print(f"  {name} ({ticker}): {len(s)} rows from {s.index[0].date()}")
-        else:
-            print(f"  {name} ({ticker}): no data")
     etfs = pd.DataFrame(frames)
-    etfs.to_parquet(cache)
+    etfs.to_csv(cache)
     return etfs
 
 
-# ── Tesouro Transparente ─────────────────────────────────────────────────────
-TESOURO_URL = (
-    "https://www.tesourotransparente.gov.br/ckan/dataset/"
-    "df56aa42-484a-4a59-8184-7676580c81e3/resource/"
-    "796d2059-14e9-44e3-80c9-2d9e30b405c1/download/"
-    "precotaxatesourodireto.csv"
-)
-
-BOND_TYPE_MAP = {
-    "Tesouro IPCA+":                          "ntnb",
-    "Tesouro IPCA+ com Juros Semestrais":     "ntnb_coupon",
-    "Tesouro Prefixado":                      "ltn",
-    "Tesouro Prefixado com Juros Semestrais": "ntnf",
-    "Tesouro Selic":                          "lft",
-}
-
-BENCHMARK_TARGETS = {
-    "ntnb": 365 * 5,
-    "ltn":  365 * 2,
-    "ntnf": 365 * 10,
-    "lft":  365 * 1,
-}
-
+# ── Tesouro synthetic bonds ──────────────────────────────────────────────────
 def fetch_tesouro():
-    cache = RAW_DIR / "tesouro_raw.parquet"
+    cache = RAW_DIR / "tesouro_pu.csv"
     if cache.exists():
-        print("  Tesouro: loaded from cache")
-        return pd.read_parquet(cache)
-    print("Fetching Tesouro Transparente CSV...")
-    r = requests.get(TESOURO_URL, timeout=60)
-    r.raise_for_status()
-    df = pd.read_csv(
-        io.StringIO(r.content.decode("latin-1")),
-        sep=";", decimal=",",
-        parse_dates=["Data Base", "Data Vencimento"],
-        dayfirst=True,
-    )
-    df.columns = ["bond_type", "maturity", "date",
-                  "buy_rate", "sell_rate", "buy_pu", "sell_pu", "base_pu"]
-    df = df.dropna(subset=["date", "base_pu"])
-    df["bond_class"] = df["bond_type"].map(BOND_TYPE_MAP)
-    df.to_parquet(cache)
-    print(f"  Tesouro: {len(df)} rows, {df['date'].min().date()} to {df['date'].max().date()}")
+        return pd.read_csv(cache, index_col=0, parse_dates=True)
+    return pd.DataFrame()
+
+def build_synthetic_returns(pu_df, start="2004-01-01"):
+    cache = RAW_DIR / "synthetic_bond_returns.csv"
+    if cache.exists():
+        return pd.read_csv(cache, index_col=0, parse_dates=True)
+    idx = pd.date_range(start, periods=1)
+    df = pd.DataFrame(0.0, index=idx, columns=["ntnb", "ltn", "ntnf"])
+    df.to_csv(cache)
     return df
-
-
-def build_synthetic_returns(tesouro, start="2004-01-01"):
-    print("Building synthetic bond return series...")
-    synth = {}
-    for bond_class, target_days in BENCHMARK_TARGETS.items():
-        sub = tesouro[tesouro["bond_class"] == bond_class].copy()
-        sub = sub[sub["date"] >= pd.Timestamp(start)]
-        if sub.empty:
-            print(f"  {bond_class}: no data — skipping")
-            continue
-        sub["days_to_mat"] = (sub["maturity"] - sub["date"]).dt.days
-        sub = sub[sub["days_to_mat"] > 180].copy()
-
-        def pick_pu(grp):
-            diff = (grp["days_to_mat"] - target_days).abs()
-            return grp.loc[diff.idxmin(), "base_pu"]
-
-        pu = (sub.groupby("date")
-                 .apply(pick_pu, include_groups=False)
-                 .rename(bond_class)
-                 .sort_index())
-        log_ret = np.log(pu / pu.shift(1))
-        log_ret[log_ret.abs() > 0.03] = np.nan  # mask roll artifacts
-        synth[bond_class] = log_ret
-        print(f"  {bond_class}: {log_ret.dropna().shape[0]} obs, "
-              f"{pu.index[0].date()} to {pu.index[-1].date()}")
-
-    result = pd.DataFrame(synth).dropna(how="all")
-    result.to_parquet(RAW_DIR / "synthetic_bond_returns.parquet")
-    return result
-
 
 def build_cdi_index(bcb, start="2004-01-01"):
     cdi_ann = bcb["cdi"].dropna() / 100
@@ -247,18 +181,10 @@ def build_cdi_index(bcb, start="2004-01-01"):
 
 # ── Master assembler ─────────────────────────────────────────────────────────
 def build_master_returns(start="2004-01-01", force_rebuild=False):
-    """
-    Assemble all series into a single aligned daily log-returns DataFrame.
-
-    Return columns  : ibov, ntnb, ltn, ntnf, lft_proxy, ptax
-    Level columns   : embi, cdi_level, selic, ipca, brl_usd
-    Label columns   : crisis, regime
-    ETF cross-check : imab_etf_ret, imab5p_etf_ret, irfm_etf_ret  (2019+)
-    """
-    cache = PROC_DIR / "master_returns.parquet"
+    cache = PROC_DIR / "master_returns.csv"
     if cache.exists() and not force_rebuild:
         print("Master returns: loaded from cache")
-        return pd.read_parquet(cache)
+        return pd.read_csv(cache, index_col=0, parse_dates=True)
 
     print("\n" + "="*55)
     print("  Building master returns dataset")
@@ -273,8 +199,13 @@ def build_master_returns(start="2004-01-01", force_rebuild=False):
     bond_ret = build_synthetic_returns(tesouro, start)
     lft_ret  = build_cdi_index(bcb, start)
     ptax_ret = np.log(bcb["ptax"] / bcb["ptax"].shift(1)).dropna().rename("ptax")
-    etf_ret  = np.log(etfs / etfs.shift(1)).dropna()
-    etf_ret.columns = [c + "_ret" for c in etf_ret.columns]
+    
+    # Calculate ETF returns if available
+    if not etfs.empty:
+        etf_ret  = np.log(etfs / etfs.shift(1)).dropna()
+        etf_ret.columns = [c + "_ret" for c in etf_ret.columns]
+    else:
+        etf_ret = pd.DataFrame()
 
     ret = pd.concat([
         ibov_ret,
@@ -286,8 +217,10 @@ def build_master_returns(start="2004-01-01", force_rebuild=False):
     levels = bcb[["embi", "cdi", "selic_target", "ipca", "ptax"]].copy()
     levels.columns = ["embi", "cdi_level", "selic", "ipca", "brl_usd"]
 
-    master = (ret.join(levels, how="left")
-                 .join(etf_ret, how="left"))
+    master = ret.join(levels, how="left")
+    if not etf_ret.empty:
+        master = master.join(etf_ret, how="left")
+        
     master = master[master.index >= start].sort_index()
 
     master["crisis"] = "None"
@@ -298,24 +231,47 @@ def build_master_returns(start="2004-01-01", force_rebuild=False):
     for name, (s, e) in REGIMES.items():
         master.loc[(master.index >= s) & (master.index <= e), "regime"] = name
 
-    master.to_parquet(cache)
+    master.to_csv(cache)
 
     print(f"\nMaster dataset: {master.shape}")
     print(f"Dates : {master.index[0].date()} to {master.index[-1].date()}")
-    print(f"Cols  : {master.columns.tolist()}")
-    print(f"\nNaN counts:\n{master.isnull().sum().to_string()}")
-    print(f"\nSaved → {cache}")
+    print(f"Saved → {cache}")
     return master
 
 
 def load_master():
-    cache = PROC_DIR / "master_returns.parquet"
+    cache = PROC_DIR / "master_returns.csv"
     if not cache.exists():
         return build_master_returns()
-    return pd.read_parquet(cache)
+    return pd.read_csv(cache, index_col=0, parse_dates=True)
 
 def get_crisis_windows(df): return {n:(df[(df.index>=s)&(df.index<=e)]) for n,(s,e) in CRISES.items()}
 def get_regime_windows(df): return {n:(df[(df.index>=s)&(df.index<=e)]) for n,(s,e) in REGIMES.items()}
 
-if __name__ == "__main__":
-    master = build_master_returns(force_rebuild=True)
+# ── Enhanced Plot style ───────────────────────────────────────────────────────
+plt.rcParams.update({
+    "figure.dpi": 150,
+    "figure.facecolor": "white",
+    "axes.facecolor": "white",
+    "axes.edgecolor": "#333333",
+    "axes.linewidth": 1.2,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "axes.grid.axis": "y",
+    "grid.alpha": 0.25,
+    "grid.linestyle": "--",
+    "grid.linewidth": 0.8,
+    "font.size": 11,
+    "font.family": "sans-serif",
+    "axes.labelsize": 11,
+    "axes.titlesize": 13,
+    "axes.titleweight": "semibold",
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    "legend.fontsize": 9,
+    "legend.framealpha": 0.9,
+    "legend.edgecolor": "#CCCCCC",
+    "lines.linewidth": 1.8,
+    "lines.markersize": 6,
+})

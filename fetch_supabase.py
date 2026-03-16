@@ -1,39 +1,79 @@
 #!/usr/bin/env python3
 """
-Fetch data from Supabase dataset_fidc table.
+Fetch data from Supabase dataset_fidc table with automatic authentication.
 Run this script directly in your terminal (not through VS Code sandbox).
 """
 import os
-from supabase import create_client
+import sys
 import json
+import asyncio
+from pathlib import Path
 
-# Your credentials from the browser session
-SUPABASE_URL = "https://ulxfhbyvbjsivbpcmyim.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsImtpZCI6IjFYa0szS3lYVGxZcElPS2ciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3VseGZoYnl2YmpzaXZicGNteWltLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3MThkNjRkZC0wMDkwLTQwN2ItYjMzYS1lODMzYmFhOTZjMGYiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzczNjkwMjQ0LCJpYXQiOjE3NzM2ODY2NDQsImVtYWlsIjoicGVkcm90b2Rlc2NhbkBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlfSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3MzY4NjY0NH1dLCJzZXNzaW9uX2lkIjoiZDZjZDdlMDYtZmQyNy00NzQ3LTkwNDEtOGM3MDMxYjMyY2QzIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.jW6L37Lo-1NhH6Ws0qY47pA5btKH1-sIZuvUHNzP5LQ"
+try:
+    from supabase import create_client
+except ImportError:
+    print("Error: supabase package not installed")
+    print("Run: pip install supabase")
+    sys.exit(1)
 
-def main():
-    print("Connecting to Supabase...")
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Import the auth agent
+from supabase_auth_agent import SupabaseAuthAgent
+
+
+async def main():
+    print("=== Supabase Data Fetcher with Auto-Auth ===\n")
+    
+    # Initialize auth agent
+    agent = SupabaseAuthAgent()
+    
+    # Ensure we have valid credentials
+    print("1. Checking authentication...")
+    authenticated = await agent.ensure_authenticated()
+    
+    if not authenticated:
+        print("❌ Failed to authenticate. Please check the error messages above.")
+        sys.exit(1)
+    
+    print("\n2. Connecting to Supabase...")
+    
+    # Load credentials from .env
+    token_data = agent._load_cached_token()
+    if not token_data:
+        print("❌ No cached token found after authentication")
+        sys.exit(1)
+    
+    supabase = create_client(
+        agent.supabase_url,
+        token_data['access_token']
+    )
     
     try:
-        # Fetch first 5 rows to test connection
-        print("Fetching data from dataset_fidc table...")
+        print("\n3. Fetching data from dataset_fidc table...")
         response = supabase.table("dataset_fidc").select("*").limit(5).execute()
         
         print(f"\n✓ Success! Retrieved {len(response.data)} rows\n")
+        print("=" * 60)
         print("Sample data:")
+        print("=" * 60)
         print(json.dumps(response.data, indent=2, ensure_ascii=False))
         
         # Get total count
+        print("\n4. Getting total row count...")
         count_response = supabase.table("dataset_fidc").select("*", count="exact").execute()
         print(f"\n✓ Total rows in table: {count_response.count}")
         
+        print("\n" + "=" * 60)
+        print("✅ All operations completed successfully!")
+        print("=" * 60)
+        
     except Exception as e:
-        print(f"\n✗ Error: {e}")
+        print(f"\n❌ Error fetching data: {e}")
         print("\nTroubleshooting:")
-        print("1. Check if your token expired (expires_at: 1773690244)")
+        print("1. Run with --refresh flag: python fetch_supabase.py --refresh")
         print("2. Verify table name is 'dataset_fidc'")
         print("3. Check if you have read permissions on this table")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
