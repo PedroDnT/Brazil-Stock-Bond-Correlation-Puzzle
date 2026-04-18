@@ -6,7 +6,7 @@ diversification breakdown, applied to the Brazilian market (2004–2026).
 ## Setup
 
 ```bash
-pip install python-bcb yfinance arch statsmodels scikit-learn scipy pandas matplotlib seaborn pyarrow pyield nbformat nbconvert
+pip install python-bcb yfinance arch statsmodels scikit-learn scipy pandas matplotlib seaborn pyarrow pyield nbformat nbconvert vaderSentiment python-dotenv
 ```
 
 ## Run
@@ -27,6 +27,7 @@ jupyter nbconvert --to notebook --execute 04_dcc_garch.ipynb --output 04_dcc_gar
 jupyter nbconvert --to notebook --execute 05_copula.ipynb --output 05_copula_executed.ipynb --ExecutePreprocessor.timeout=600
 jupyter nbconvert --to notebook --execute 06_portfolio_metrics.ipynb --output 06_portfolio_metrics_executed.ipynb --ExecutePreprocessor.timeout=900
 jupyter nbconvert --to notebook --execute 07_stress_test.ipynb --output 07_stress_test_executed.ipynb
+jupyter nbconvert --to notebook --execute 08_global_macro.ipynb --output 08_global_macro_executed.ipynb
 
 # Or just launch Jupyter and run interactively
 jupyter notebook
@@ -40,8 +41,13 @@ jupyter notebook
 | CDI, Selic, IPCA, PTAX, EMBI proxy | BCB REST API (SGS) |
 | NTN-B, LTN, NTN-F, LFT prices | Tesouro Transparente CSV |
 | IMA-B, IRF-M ETFs (2019+) | Yahoo Finance |
+| Fed, ECB, BoE, RBI, BoJ, BoC rates | FRED API |
+| CPI inflation (25 countries) | World Bank API |
+| Monetary policy headlines | NewsAPI + VADER |
 
 For debenture (IDA) data: requires ANBIMA Feed API subscription.
+
+**API keys** (optional, for notebook 08): set `FRED_API_KEY` and `NEWS_API_KEY` in `.env`.
 
 ## Key results
 
@@ -72,7 +78,8 @@ brazil_study/
 │   ├── 04_dcc_garch.ipynb     # DCC-GARCH time-varying correlation
 │   ├── 05_copula.ipynb        # Copula tail dependence
 │   ├── 06_portfolio_metrics.ipynb  # DR, ENB, PCA, CoVaR
-│   └── 07_stress_test.ipynb   # Historical scenarios & stressed VaR
+│   ├── 07_stress_test.ipynb   # Historical scenarios & stressed VaR
+│   └── 08_global_macro.ipynb  # Global rates, CPI, sentiment, IMF framework
 ├── data/
 │   ├── raw/               # Cached raw fetches
 │   └── processed/         # master_returns.parquet

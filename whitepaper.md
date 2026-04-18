@@ -212,11 +212,25 @@ Shrinking the correlation matrix from current estimates toward equicorrelation (
 
 ---
 
-## 9. Connecting to the IMF framework
+## 9. Connecting to the IMF framework: global macro evidence
 
 The IMF's February 2026 study focuses on advanced economies and identifies a post-2019 regime shift driven by: (1) inflation supply shocks making bonds and stocks move together; (2) fiscal expansion increasing the supply of government bonds, requiring higher yields to clear markets; and (3) QT reducing the price-insensitive central bank bid for bonds. All three mechanisms are present in Brazil, with the additional layer of sovereign credit risk that amplifies and precedes them.
 
-The critical difference is the *permanence* of the condition. For G4 economies, the post-2019 correlation shift may be reversible if central bank balance sheets re-expand and fiscal positions stabilise. For Brazil, the positive stock-bond correlation has persisted across six distinct macroeconomic regimes over twenty years — surviving fiscal consolidations, commodity booms, reform attempts, and external shocks. The underlying mechanism — sovereign credit risk contaminating all domestic asset prices simultaneously — is structural rather than cyclical, rooted in the country's debt dynamics, currency vulnerability, and historical default risk.
+### 9.1 Brazil's real rate in global context
+
+Using FRED API data for seven major central banks (Fed, ECB, BoE, RBI, BoJ, BoC, RBA) and World Bank annual CPI for 25 countries (notebook 08), we document that Brazil's real policy rate (Selic − IPCA) has been persistently among the highest globally across the entire 2015–2026 sample. While G4 economies experienced negative real rates during 2020–2022, Brazil maintained positive real rates throughout — a direct consequence of the fiscal dominance premium (Section 2.2). The pre-2020 vs. post-2020 comparison reveals that advanced economies moved *toward* Brazil's structurally high real rate environment, not the reverse.
+
+### 9.2 Global monetary policy cycle and Brazilian correlations
+
+The 2022 global tightening cycle — in which the Fed, ECB, and BoE collectively raised rates by over 1,000 basis points — coincides precisely with the COVID & Post-COVID regime where the Ibovespa × NTN-B DCC correlation peaked at +0.156. Global rate hikes amplify Brazil's stock-bond correlation through the USD/BRL channel: G3 tightening strengthens the dollar, weakens the real, raises inflation pass-through expectations, and pushes both Brazilian equity and bond prices down simultaneously. The cumulative G3 rate change series (notebook 08, Figure 6.3) shows this synchronisation visually.
+
+### 9.3 News sentiment as a regime indicator
+
+VADER-scored monetary policy headlines (2021–2025 seed corpus + live NewsAPI extension) track the hawkish-to-dovish transition across central banks. The 2022 hawkish peak — dominated by 75bps rate hikes across the Fed, ECB, and BoE — corresponds to the period of highest DCC conditional correlations in the Brazilian domestic analysis. The cross-economy correlation between news sentiment and rate changes varies substantially, with developed economies showing tighter alignment than emerging markets where domestic political factors dominate (consistent with the Joesley Day finding in Section 5).
+
+### 9.4 The convergence hypothesis
+
+The critical difference between Brazil and advanced economies is the *permanence* of the condition. For G4 economies, the post-2019 correlation shift may be reversible if central bank balance sheets re-expand and fiscal positions stabilise. For Brazil, the positive stock-bond correlation has persisted across six distinct macroeconomic regimes over twenty years — surviving fiscal consolidations, commodity booms, reform attempts, and external shocks. The underlying mechanism — sovereign credit risk contaminating all domestic asset prices simultaneously — is structural rather than cyclical, rooted in the country's debt dynamics, currency vulnerability, and historical default risk. The global macro analysis (notebook 08) confirms that the post-2020 correlation regime in advanced economies represents a partial convergence toward Brazil's permanent condition.
 
 The IMF recommends that "regulators should incorporate correlation breakdown scenarios into stress tests" as a response to the post-2020 regime. For Brazilian supervisors and investors, this recommendation has been operational necessity for years: the stressed VaR table (Table 5) shows that crisis-period VaR can be 2.5–2.7× higher than calm-period estimates, a fact that should already be embedded in risk management frameworks.
 
@@ -239,6 +253,14 @@ This paper documents that Brazil's stock-bond diversification problem is not a p
 **Finding 6: Portfolio metrics confirm fragility.** PC1 variance explained reaches 68.7% during worst stress periods. ENB drops toward 1. DR approaches 1.0 during crises.
 
 **Finding 7: LFT is the only genuine domestic diversifier.** Zero loss across all six crisis episodes. Capital preservation without capital appreciation. The appropriate benchmark for LFT is not "will it rally when equities crash?" but "will it hold its value?" — a question it answers affirmatively across all scenarios studied.
+
+**Finding 8: Brazil's real policy rate is structurally the highest among major economies.** Global macro data (FRED, World Bank) confirm that the Selic − IPCA spread has remained persistently elevated relative to G4 peers, reflecting the sovereign credit risk premium that is the primary driver of positive stock-bond correlations.
+
+**Finding 9: The 2021–2023 global inflation shock elevated real rates worldwide, but G4 economies converged toward Brazil's pre-existing condition** — not the reverse. The pre-2020 vs. post-2020 real rate comparison across seven central banks demonstrates this convergence quantitatively.
+
+**Finding 10: News sentiment tracks the hawkish-to-dovish monetary policy transition,** with the 2022 hawkish peak coinciding with the period of highest Ibov×NTN-B DCC correlation (+0.156 in the COVID & Post-COVID regime). The cross-economy sentiment-to-rate-change correlation varies, with developed markets showing tighter alignment than emerging markets.
+
+**Finding 11: Global monetary policy tightening cycles amplify Brazil's stock-bond correlation** through the USD/BRL channel. G3 rate hikes strengthen the dollar, weaken the real, raise inflation pass-through expectations, and push both Brazilian equity and bond prices down simultaneously — a transmission mechanism absent from the IMF's advanced-economy analysis.
 
 **Implication for portfolio construction:** A Brazilian investor seeking domestic diversification should treat the fiscal dominance regime indicator (primary balance trajectory, EMBI+ trend, CDS spread level) as the master allocation switch. During monetary dominance periods (falling Selic, improving fiscal metrics, EMBI compression), longer-duration bonds (IMA-B 5+, IRF-M) provide genuine diversification as rates fall. During fiscal dominance, LFT allocation should be maximised, with the remainder in international assets (USD exposure benefits from BRL depreciation during Brazilian-specific crises) rather than attempting to find diversification within domestic fixed income.
 
@@ -288,6 +310,17 @@ Portelli, L. and Roncalli, T. (2024). "Rethinking the Stock-Bond Correlation." A
 | LTN prices | Tesouro Transparente | CSV | Dec 2004 | Daily |
 | NTN-F prices | Tesouro Transparente | CSV | Dec 2004 | Daily |
 | LFT prices | Tesouro Transparente | CSV | Dec 2004 | Daily |
+| Fed Funds Rate | FRED | `FEDFUNDS` | Jan 2015 | Monthly |
+| ECB Deposit Rate | FRED | `ECBDFR` | Jan 2015 | Monthly |
+| BoE Base Rate | FRED | `BOERUKM` | Jan 2015 | Monthly |
+| RBI Repo Rate | FRED | `IRSTCB01INM156N` | Jan 2015 | Monthly |
+| BoJ Policy Rate | FRED | `IRSTCB01JPM156N` | Jan 2015 | Monthly |
+| BoC Overnight Rate | FRED | `IRSTCB01CAM156N` | Jan 2015 | Monthly |
+| US 10Y Treasury | FRED | `GS10` | Jan 2015 | Monthly |
+| US CPI All Items | FRED | `CPIAUCSL` | Jan 2015 | Monthly |
+| US Core PCE | FRED | `PCEPILFE` | Jan 2015 | Monthly |
+| Global CPI (25 countries) | World Bank | `FP.CPI.TOTL.ZG` | 2015 | Annual |
+| News Sentiment | NewsAPI + VADER | — | 2021 | Event-based |
 | IMA-B ETF | Yahoo Finance | `IMAB11.SA` | May 2019 | Daily |
 | IMA-B 5+ ETF | Yahoo Finance | `IB5M11.SA` | Sep 2019 | Daily |
 | IRF-M ETF | Yahoo Finance | `IRFM11.SA` | Sep 2019 | Daily |
@@ -305,5 +338,6 @@ All code is available at [github.com/PedroDnT/brazil-stock-bond-correlation]. Th
 - `notebooks/05_copula.ipynb` — copula fitting and tail dependence
 - `notebooks/06_portfolio_metrics.ipynb` — DR, ENB, PCA, CoVaR
 - `notebooks/07_stress_test.ipynb` — historical scenarios and stressed VaR
+- `notebooks/08_global_macro.ipynb` — global policy rates, CPI, real rates, news sentiment, IMF framework
 
-Dependencies: `python-bcb`, `yfinance`, `arch`, `statsmodels`, `scikit-learn`, `scipy`, `pandas`, `matplotlib`, `seaborn`.
+Dependencies: `python-bcb`, `yfinance`, `arch`, `statsmodels`, `scikit-learn`, `scipy`, `pandas`, `matplotlib`, `seaborn`, `vaderSentiment`, `python-dotenv`.
