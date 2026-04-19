@@ -10,13 +10,13 @@ This guide proceeds in six parts: (1) why traditional metrics fail, (2) academic
 
 ### The Markowitz assumption that correlations hold still
 
-The mean-variance framework treats the covariance matrix $\boldsymbol{\Sigma}$ as a fixed input. Optimal portfolio weights $\mathbf{w} = \frac{1}{\lambda}\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$ depend on the **inverse** of the covariance matrix, which amplifies estimation errors catastrophically — a phenomenon Michaud (1989) termed "error maximization." When correlations shift between regimes, a portfolio optimized under one regime can be disastrously suboptimal under another. Mynbayeva, Lamb, and Zhao (2022, *European Journal of Operational Research*) demonstrated that even with normally distributed data and shrinkage estimators, mean-variance optimization fails badly because asset mean returns cannot be confidently distinguished.
+The mean-variance framework treats the covariance matrix $\boldsymbol{\Sigma}$ as a fixed input. Optimal portfolio weights $\mathbf{w} = \frac{1}{\lambda}\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$ depend on the **inverse** of the covariance matrix, which amplifies estimation errors catastrophically — a phenomenon Michaud (1989) termed "error maximization." When correlations shift between regimes, a portfolio optimized under one regime can be disastrously suboptimal under another. Mynbayeva, Lamb, and Zhao (2022, _European Journal of Operational Research_) demonstrated that even with normally distributed data and shrinkage estimators, mean-variance optimization fails badly because asset mean returns cannot be confidently distinguished.
 
 Four specific failure channels undermine traditional metrics:
 
-**Time-varying correlations.** VaR, volatility, and Sharpe ratio all embed the assumption that distributional parameters are stable over the measurement horizon. Forbes and Rigobon (2002, *Journal of Finance*) showed that correlation coefficients are conditional on market volatility: during turmoil, unadjusted correlations are **mechanically biased upward** by heteroskedasticity. After correction, the apparent correlation surge during the 1997 Asian crisis, 1994 Mexican devaluation, and 1987 U.S. crash largely vanished — suggesting that true correlations were already high during calm periods, and diversification was always less effective than assumed.
+**Time-varying correlations.** VaR, volatility, and Sharpe ratio all embed the assumption that distributional parameters are stable over the measurement horizon. Forbes and Rigobon (2002, _Journal of Finance_) showed that correlation coefficients are conditional on market volatility: during turmoil, unadjusted correlations are **mechanically biased upward** by heteroskedasticity. After correction, the apparent correlation surge during the 1997 Asian crisis, 1994 Mexican devaluation, and 1987 U.S. crash largely vanished — suggesting that true correlations were already high during calm periods, and diversification was always less effective than assumed.
 
-**Tail dependence.** Longin and Solnik (2001, *Journal of Finance*) applied extreme value theory to 38 years of equity data across five major markets and found that the correlation of large negative returns does **not** converge to zero as the threshold increases — directly contradicting the multivariate normal assumption. They rejected multivariate normality for the **negative tail but not the positive tail**, establishing that diversification fails asymmetrically: correlations spike in bear markets but not in bull markets. Standard deviation, a symmetric measure, is blind to this asymmetry.
+**Tail dependence.** Longin and Solnik (2001, _Journal of Finance_) applied extreme value theory to 38 years of equity data across five major markets and found that the correlation of large negative returns does **not** converge to zero as the threshold increases — directly contradicting the multivariate normal assumption. They rejected multivariate normality for the **negative tail but not the positive tail**, establishing that diversification fails asymmetrically: correlations spike in bear markets but not in bull markets. Standard deviation, a symmetric measure, is blind to this asymmetry.
 
 **Illiquidity and stale pricing.** Getmansky, Lo, and Makarov (2003) formalized how illiquid assets exhibit serial correlation in reported returns because prices are stale. Smoothed returns reduce observed variance, bias market beta toward zero, and create the **illusion of low correlation and diversification** that vanishes during liquidation events. AllianceBernstein (2022) estimated that a significant portion of the diversification benefit attributed to illiquid assets is "fake" — an artifact of mark-to-market frequency differences. For Brazilian debentures, which trade infrequently in secondary markets, this channel is particularly dangerous.
 
@@ -24,7 +24,7 @@ Four specific failure channels undermine traditional metrics:
 
 ### The CAPM breaks during regime switches
 
-CAPM beta, defined as $\beta_i = \text{Cov}(r_i, r_m) / \text{Var}(r_m)$, is unstable when both numerator and denominator shift across regimes. Campbell, Pflueger, and Viceira (2020, *Journal of Political Economy*) identified a structural break in stock-bond comovements around 2001, driven by a shift in the inflation–output gap correlation from negative (stagflation era) to positive (demand-driven era). Under the pre-2001 regime, bond beta was positive (bonds were risky like stocks, $\rho \approx +0.50$); under the post-2001 regime, it turned negative (bonds hedged stocks, $\rho \approx -0.66$). Their 2025 update confirms that the post-COVID inflation episode has temporarily reversed this, aligning with the IMF's February 2026 finding that "the end of 2019 marked a structural shift."
+CAPM beta, defined as $\beta_i = \text{Cov}(r_i, r_m) / \text{Var}(r_m)$, is unstable when both numerator and denominator shift across regimes. Campbell, Pflueger, and Viceira (2020, _Journal of Political Economy_) identified a structural break in stock-bond comovements around 2001, driven by a shift in the inflation–output gap correlation from negative (stagflation era) to positive (demand-driven era). Under the pre-2001 regime, bond beta was positive (bonds were risky like stocks, $\rho \approx +0.50$); under the post-2001 regime, it turned negative (bonds hedged stocks, $\rho \approx -0.66$). Their 2025 update confirms that the post-COVID inflation episode has temporarily reversed this, aligning with the IMF's February 2026 finding that "the end of 2019 marked a structural shift."
 
 For Brazil, the PUC-Rio dissertation by Cardoso (2024) demonstrates that the stock-bond beta has been **positive and volatile for the last 18 years** — country risk (EMBI+, CDS) dominates the inflation-output channel that governs developed-market correlations.
 
@@ -52,7 +52,7 @@ Typical choices: $w = 252$ (12-month daily) or $w = 756$ (36-month). Rolling Spe
 
 ### 2B. DCC-GARCH: dynamic conditional correlation
 
-**Intuition.** The DCC model (Engle, 2002, *Journal of Business & Economic Statistics*) decomposes the time-varying covariance matrix into individual asset volatilities and a dynamic correlation matrix via a computationally tractable two-stage estimation.
+**Intuition.** The DCC model (Engle, 2002, _Journal of Business & Economic Statistics_) decomposes the time-varying covariance matrix into individual asset volatilities and a dynamic correlation matrix via a computationally tractable two-stage estimation.
 
 **Stage 1 — Univariate GARCH(1,1)** for each asset $i$:
 
@@ -68,7 +68,7 @@ $$R_t = (\text{diag}(Q_t))^{-1/2}\,Q_t\,(\text{diag}(Q_t))^{-1/2}$$
 
 where $\bar{Q} = T^{-1}\sum \epsilon_t\epsilon_t'$ is the unconditional correlation matrix, and $a > 0, b > 0, a + b < 1$. The pairwise time-varying correlation is $\rho_{ij,t} = q_{ij,t}/\sqrt{q_{ii,t} \cdot q_{jj,t}}$. Rising $\rho_t$ toward $+1$ during crises indicates contagion; the speed of mean reversion is governed by $a + b$.
 
-The **Asymmetric DCC (AG-DCC)** of Cappiello, Engle, and Sheppard (2006, *Journal of Financial Econometrics*) adds a leverage term:
+The **Asymmetric DCC (AG-DCC)** of Cappiello, Engle, and Sheppard (2006, _Journal of Financial Econometrics_) adds a leverage term:
 
 $$Q_t = (\bar{Q} - A'\bar{Q}A - B'\bar{Q}B - G'\bar{N}G) + A'\epsilon_{t-1}\epsilon_{t-1}'A + B'Q_{t-1}B + G'n_{t-1}n_{t-1}'G$$
 
@@ -92,22 +92,22 @@ $$\lambda_U = \lim_{u \to 1^-} \Pr[U_2 > u \mid U_1 > u] = \lim_{u \to 1^-} \fra
 
 The choice of copula family determines tail behavior:
 
-| Copula | Formula | $\lambda_L$ | $\lambda_U$ | Best for |
-|--------|---------|-------------|-------------|----------|
-| **Gaussian** | $\Phi_2(\Phi^{-1}(u_1), \Phi^{-1}(u_2); \rho)$ | 0 | 0 | Symmetric, no tail dependence |
-| **Student-t** | $T_2(T_\nu^{-1}(u_1), T_\nu^{-1}(u_2); \rho, \nu)$ | $2t_{\nu+1}\left(-\sqrt{\frac{(\nu+1)(1-\rho)}{1+\rho}}\right)$ | Same | Symmetric crashes and booms |
-| **Clayton** | $(u_1^{-\theta} + u_2^{-\theta} - 1)^{-1/\theta}$ | $2^{-1/\theta}$ | 0 | **Lower-tail co-crashes** |
-| **Gumbel** | $\exp(-[(-\ln u_1)^\theta + (-\ln u_2)^\theta]^{1/\theta})$ | 0 | $2 - 2^{1/\theta}$ | Upper-tail co-booms |
+| Copula        | Formula                                                     | $\lambda_L$                                                     | $\lambda_U$        | Best for                      |
+| ------------- | ----------------------------------------------------------- | --------------------------------------------------------------- | ------------------ | ----------------------------- |
+| **Gaussian**  | $\Phi_2(\Phi^{-1}(u_1), \Phi^{-1}(u_2); \rho)$              | 0                                                               | 0                  | Symmetric, no tail dependence |
+| **Student-t** | $T_2(T_\nu^{-1}(u_1), T_\nu^{-1}(u_2); \rho, \nu)$          | $2t_{\nu+1}\left(-\sqrt{\frac{(\nu+1)(1-\rho)}{1+\rho}}\right)$ | Same               | Symmetric crashes and booms   |
+| **Clayton**   | $(u_1^{-\theta} + u_2^{-\theta} - 1)^{-1/\theta}$           | $2^{-1/\theta}$                                                 | 0                  | **Lower-tail co-crashes**     |
+| **Gumbel**    | $\exp(-[(-\ln u_1)^\theta + (-\ln u_2)^\theta]^{1/\theta})$ | 0                                                               | $2 - 2^{1/\theta}$ | Upper-tail co-booms           |
 
 **Why Student-t and Clayton copulas fit emerging market data better than Gaussian.** The Gaussian copula produces $\lambda_L = \lambda_U = 0$ for $\rho < 1$ — extremes are asymptotically independent even under high correlation. Emerging market assets exhibit significant lower tail dependence (correlated crashes driven by capital flight, sovereign risk, and currency crises), making the Clayton copula ($\lambda_L = 2^{-1/\theta} > 0$) and Student-t copula (symmetric $\lambda > 0$) far more appropriate.
 
-**Time-varying copulas** (Patton, 2006, *International Economic Review*) allow tail dependence to evolve. For the SJC copula: $\tau_t^U = \Lambda(\omega_U + \beta_U \tau_{t-1}^U + \alpha_U \cdot \frac{1}{10}\sum_{j=1}^{10}|u_{t-j} - v_{t-j}|)$, where $\Lambda$ is the logistic function mapping to $(0,1)$.
+**Time-varying copulas** (Patton, 2006, _International Economic Review_) allow tail dependence to evolve. For the SJC copula: $\tau_t^U = \Lambda(\omega_U + \beta_U \tau_{t-1}^U + \alpha_U \cdot \frac{1}{10}\sum_{j=1}^{10}|u_{t-j} - v_{t-j}|)$, where $\Lambda$ is the logistic function mapping to $(0,1)$.
 
 **Limitations.** High-dimensional copulas require vine structures (computationally expensive). Family misspecification affects tail estimates. Tail coefficients require large samples. Time-varying parameters can be hard to identify.
 
 ### 2D. CoVaR: conditional value-at-risk for contagion
 
-**Intuition.** CoVaR (Adrian and Brunnermeier, 2016, *American Economic Review*) measures the VaR of one asset (or the system) conditional on another asset being in distress, capturing directional tail risk spillover.
+**Intuition.** CoVaR (Adrian and Brunnermeier, 2016, _American Economic Review_) measures the VaR of one asset (or the system) conditional on another asset being in distress, capturing directional tail risk spillover.
 
 **Formal definition:**
 
@@ -131,7 +131,7 @@ For Brazil, the natural application is to estimate the CoVaR of IDA-DI (debentur
 
 ### 2E. Regime-switching models
 
-**Intuition.** Asset correlations shift between discrete regimes governed by an unobserved Markov chain. Hamilton's (1989, *Econometrica*) filter probabilistically infers the current regime from observed data.
+**Intuition.** Asset correlations shift between discrete regimes governed by an unobserved Markov chain. Hamilton's (1989, _Econometrica_) filter probabilistically infers the current regime from observed data.
 
 **Bivariate MS-VAR for correlation regimes:**
 
@@ -235,13 +235,13 @@ $$\text{LVaR} = \text{VaR} + \sum_{j=1}^n \frac{(\mu_j + \lambda\sigma_j)\alpha_
 
 where $\mu_j$ and $\sigma_j$ are the mean and standard deviation of the proportional bid-ask spread, and $\lambda$ is the confidence parameter.
 
-**Days-to-liquidate:** $\text{DTL}_i = \text{Shares held}_i / (\text{ADTV}_i \times \text{Participation Rate})$, with typical participation rate of 10–20%. For infrastructure debentures (*debêntures incentivadas*), DTL routinely exceeds **10 business days** during stress.
+**Days-to-liquidate:** $\text{DTL}_i = \text{Shares held}_i / (\text{ADTV}_i \times \text{Participation Rate})$, with typical participation rate of 10–20%. For infrastructure debentures (_debêntures incentivadas_), DTL routinely exceeds **10 business days** during stress.
 
 **The illiquidity-diversification tradeoff.** Illiquid debentures offer a spread premium (CDI + 1.3% to CDI + 3% depending on credit quality and market conditions), but including them in a diversified portfolio incurs hidden costs: wider bid-ask spreads during rebalancing, higher market impact during crisis liquidation, and stale pricing that artificially suppresses measured correlations. During Americanas (January 2023), the BCB Financial Stability Report documented "significant and abrupt increase in securities spreads, reducing fund returns, causing waves of redemptions."
 
 ### 3F. Effective number of bets
 
-**Meucci (2009, *Risk Magazine*)** transforms correlated assets into uncorrelated "principal portfolios" via PCA, then measures how evenly risk distributes across them.
+**Meucci (2009, _Risk Magazine_)** transforms correlated assets into uncorrelated "principal portfolios" via PCA, then measures how evenly risk distributes across them.
 
 **Step 1:** Eigendecompose $\boldsymbol{\Sigma} = \mathbf{E}\boldsymbol{\Lambda}\mathbf{E}^\top$. **Step 2:** Express weights in PC space: $\tilde{\mathbf{w}} = \mathbf{E}^\top\mathbf{w}$. **Step 3:** Compute the diversification distribution: $p_k = \tilde{w}_k^2\lambda_k / \sum_i \tilde{w}_i^2\lambda_i$. **Step 4:** ENB via exponential Shannon entropy:
 
@@ -255,24 +255,24 @@ During crises, PC1 dominates and all $p_k$ for $k \geq 2$ collapse, driving ENB 
 
 ## 4. Cross-method comparison and synthesis
 
-| Method | What it measures | Academic rigor | Practitioner usability | Data needs | Computation | Best for detecting | Python libraries |
-|--------|-----------------|---------------|----------------------|------------|-------------|-------------------|-----------------|
-| Rolling correlation | Time-varying linear dependence | Low | **High** | Returns only | Trivial | Gradual regime shifts | `pandas` |
-| Bai-Perron breaks | Structural break dates | **High** | Medium | Returns only | Moderate | Discrete regime changes | `statsmodels` |
-| DCC-GARCH | Dynamic conditional correlation | **High** | Medium | Returns only | Moderate | Correlation clustering, mean reversion | `arch` + `scipy` / `mvgarch` |
-| ADCC-GARCH | Asymmetric correlation dynamics | **High** | Medium | Returns only | High | Leverage effect in correlations | `rmgarch` (R) |
-| Copulas ($\lambda_L$, $\lambda_U$) | Tail dependence | **High** | Low | Returns (large sample) | High | **Crash co-movement** | `pycop`, `skfolio`, `scipy` |
-| Time-varying copulas | Dynamic tail dependence | **High** | Low | Returns (very large) | Very high | Evolving tail risk | Custom / R `VineCopula` |
-| CoVaR / $\Delta$CoVaR | Tail risk spillover | **High** | Medium | Returns + state vars | Moderate | **Contagion direction** | `statsmodels` (QuantReg) |
-| Markov-switching | Discrete correlation regimes | **High** | Low | Returns + macro vars | High | Regime identification, duration | `statsmodels.tsa` |
-| Mutual information | Total (incl. nonlinear) dependence | Medium | Low | Returns (large) | Moderate | Nonlinear dependencies | `sklearn.metrics` |
-| Transfer entropy | Directional information flow | Medium | Low | Returns (large) | High | Lead-lag contagion | `PyInform` |
-| Stressed VaR/ES | Portfolio tail loss under stress | Medium | **High** | Cov matrix + scenarios | Low | **Correlation regime impact** | `numpy`, `scipy` |
-| Diversification Ratio | Portfolio diversification level | Medium | **High** | Weights + cov matrix | Trivial | Diversification collapse | `numpy` |
-| PCA (PC1 share) | Factor concentration | Medium | **High** | Returns | Low | **"All correlations → 1"** | `sklearn.decomposition` |
-| ENB (Meucci) | Independent bets count | Medium | **High** | Weights + cov matrix | Low | Overall diversification quality | `numpy` |
-| LVaR | Liquidity-adjusted tail risk | Low | **High** | Bid-ask, volume | Low | **Illiquidity risk** | Custom |
-| Reverse stress test | Worst-case correlation scenario | Medium | **High** | Full model | High | Unknown-unknowns | Custom |
+| Method                             | What it measures                   | Academic rigor | Practitioner usability | Data needs             | Computation | Best for detecting                     | Python libraries             |
+| ---------------------------------- | ---------------------------------- | -------------- | ---------------------- | ---------------------- | ----------- | -------------------------------------- | ---------------------------- |
+| Rolling correlation                | Time-varying linear dependence     | Low            | **High**               | Returns only           | Trivial     | Gradual regime shifts                  | `pandas`                     |
+| Bai-Perron breaks                  | Structural break dates             | **High**       | Medium                 | Returns only           | Moderate    | Discrete regime changes                | `statsmodels`                |
+| DCC-GARCH                          | Dynamic conditional correlation    | **High**       | Medium                 | Returns only           | Moderate    | Correlation clustering, mean reversion | `arch` + `scipy` / `mvgarch` |
+| ADCC-GARCH                         | Asymmetric correlation dynamics    | **High**       | Medium                 | Returns only           | High        | Leverage effect in correlations        | `rmgarch` (R)                |
+| Copulas ($\lambda_L$, $\lambda_U$) | Tail dependence                    | **High**       | Low                    | Returns (large sample) | High        | **Crash co-movement**                  | `pycop`, `skfolio`, `scipy`  |
+| Time-varying copulas               | Dynamic tail dependence            | **High**       | Low                    | Returns (very large)   | Very high   | Evolving tail risk                     | Custom / R `VineCopula`      |
+| CoVaR / $\Delta$CoVaR              | Tail risk spillover                | **High**       | Medium                 | Returns + state vars   | Moderate    | **Contagion direction**                | `statsmodels` (QuantReg)     |
+| Markov-switching                   | Discrete correlation regimes       | **High**       | Low                    | Returns + macro vars   | High        | Regime identification, duration        | `statsmodels.tsa`            |
+| Mutual information                 | Total (incl. nonlinear) dependence | Medium         | Low                    | Returns (large)        | Moderate    | Nonlinear dependencies                 | `sklearn.metrics`            |
+| Transfer entropy                   | Directional information flow       | Medium         | Low                    | Returns (large)        | High        | Lead-lag contagion                     | `PyInform`                   |
+| Stressed VaR/ES                    | Portfolio tail loss under stress   | Medium         | **High**               | Cov matrix + scenarios | Low         | **Correlation regime impact**          | `numpy`, `scipy`             |
+| Diversification Ratio              | Portfolio diversification level    | Medium         | **High**               | Weights + cov matrix   | Trivial     | Diversification collapse               | `numpy`                      |
+| PCA (PC1 share)                    | Factor concentration               | Medium         | **High**               | Returns                | Low         | **"All correlations → 1"**             | `sklearn.decomposition`      |
+| ENB (Meucci)                       | Independent bets count             | Medium         | **High**               | Weights + cov matrix   | Low         | Overall diversification quality        | `numpy`                      |
+| LVaR                               | Liquidity-adjusted tail risk       | Low            | **High**               | Bid-ask, volume        | Low         | **Illiquidity risk**                   | Custom                       |
+| Reverse stress test                | Worst-case correlation scenario    | Medium         | **High**               | Full model             | High        | Unknown-unknowns                       | Custom                       |
 
 **Synthesis.** No single method captures all dimensions of hidden correlation risk. The recommended stack combines:
 
