@@ -11,3 +11,24 @@ downloads/
 eggs/
 .eggs/
 lib/
+.venv/
+
+# Secrets
+.env
+
+# OS
+.DS_Store
+
+# Data (large files - regenerate with src/fetch.py)
+data/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Tool artifacts
+.paper-refs.json
+.vscode/paper-cache.json
+
+# Local agent / AI tool configs
+.agents/
+.claude/

@@ -16,7 +16,7 @@ pip install python-bcb yfinance arch statsmodels scikit-learn scipy pandas matpl
 python3 src/fetch.py
 
 # 2. Generate all notebooks
-python3 build_notebooks.py
+python3 scripts/build_notebooks.py
 
 # 3. Execute notebooks in order
 cd notebooks
@@ -63,27 +63,38 @@ For debenture (IDA) data: requires ANBIMA Feed API subscription.
 
 ## Outputs
 
-All figures and tables are in `outputs/`. See `outputs/whitepaper.md` for the full paper.
+All figures and tables are in `outputs/`. See `docs/whitepaper.md` for the full paper.
 
 ## Project structure
 
 ```
-brazil_study/
 ├── src/
-│   └── fetch.py           # All data ingestion
+│   ├── fetch.py              # All data ingestion
+│   ├── fetch_supabase.py     # Supabase data fetcher
+│   ├── harvester.py          # Data harvester
+│   └── supabase_auth_agent.py
 ├── notebooks/
-│   ├── 01_data.ipynb      # Data pipeline & validation
-│   ├── 02_descriptive.ipynb   # Regime stats & correlation matrices
-│   ├── 03_rolling_corr.ipynb  # Rolling correlations & CUSUM
-│   ├── 04_dcc_garch.ipynb     # DCC-GARCH time-varying correlation
-│   ├── 05_copula.ipynb        # Copula tail dependence
+│   ├── 01_data.ipynb         # Data pipeline & validation
+│   ├── 02_descriptive.ipynb  # Regime stats & correlation matrices
+│   ├── 03_rolling_corr.ipynb # Rolling correlations & CUSUM
+│   ├── 04_dcc_garch.ipynb    # DCC-GARCH time-varying correlation
+│   ├── 05_copula.ipynb       # Copula tail dependence
 │   ├── 06_portfolio_metrics.ipynb  # DR, ENB, PCA, CoVaR
-│   ├── 07_stress_test.ipynb   # Historical scenarios & stressed VaR
-│   └── 08_global_macro.ipynb  # Global rates, CPI, sentiment, IMF framework
+│   ├── 07_stress_test.ipynb  # Historical scenarios & stressed VaR
+│   └── 08_global_macro.ipynb # Global rates, CPI, sentiment, IMF framework
+├── scripts/
+│   ├── build_notebooks.py    # Generates all .ipynb files
+│   ├── acess_db.sh           # Database access helper
+│   └── setup_supabase_auth.sh
+├── docs/
+│   ├── whitepaper.md         # Full research paper
+│   ├── quantifying_hidden.md
+│   ├── implementation_guide.md
+│   └── stock_bond_diversification.md
+├── config/
+│   └── plot_style.py         # Matplotlib rcParams
 ├── data/
-│   ├── raw/               # Cached raw fetches
-│   └── processed/         # master_returns.parquet
-├── outputs/               # All figures (.png) and tables (.csv)
-│   └── whitepaper.md      # Full research paper
-└── build_notebooks.py     # Generates all .ipynb files
+│   ├── raw/                  # Cached raw fetches
+│   └── processed/            # master_returns.parquet
+└── outputs/                  # All figures (.png) and tables (.csv)
 ```
