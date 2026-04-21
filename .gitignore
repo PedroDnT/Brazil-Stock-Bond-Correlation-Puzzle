@@ -22,6 +22,9 @@ lib/
 # Data (large files - regenerate with src/fetch.py)
 data/
 
+# Outputs (regenerate by running notebooks)
+outputs/
+
 # Jupyter
 .ipynb_checkpoints/
 
