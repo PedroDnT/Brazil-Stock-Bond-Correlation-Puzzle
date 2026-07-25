@@ -127,6 +127,14 @@ The critical insight is that the IMF's finding represents a **convergence** of a
 
 ## Complete data access guide for Python implementation
 
+> **Correction.** The snippets in this section were drafted from source catalogues
+> and several of the identifiers do not resolve against the live APIs. Ibovespa and
+> EMBI+ Brazil are not available as daily BCB SGS series (both are free from
+> IPEADATA), the IMA index codes do not resolve, and SGS 11/12 are percent-per-day
+> rather than annual rates. The verified source list is in
+> `docs/03_implementation_guide.md`; the working implementation is `src/fetch.py`,
+> which validates each series against known historical values on every rebuild.
+
 ### Core data retrieval using python-bcb
 
 ```python

@@ -86,8 +86,10 @@ survive the Forbes-Rigobon volatility adjustment.
 
 ## Outputs
 
-`scripts/run_analysis.py` writes 16 CSV tables to `outputs/`; the notebooks add 24
-figures. Both directories are gitignored and regenerate from source.
+`scripts/run_analysis.py` writes the paper's tables as `outputs/tbl_*.csv`. The
+notebooks write their own figure-side tables as `outputs/nb_tbl_*.csv` plus 24 PNG
+figures, so each file has exactly one writer. `outputs/` and `data/` are gitignored
+and regenerate from source.
 
 ## Documentation series
 

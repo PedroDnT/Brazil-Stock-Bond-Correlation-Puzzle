@@ -286,6 +286,16 @@ During crises, PC1 dominates and all $p_k$ for $k \geq 2$ collapse, driving ENB 
 
 ### Data pipeline: from BCB to returns
 
+> **Correction — what the implemented pipeline actually uses.** The sketch below was
+> written from the SGS catalogue and does not survive contact with the live API. Three
+> of its assumptions are wrong: **Ibovespa is not available as a daily SGS series**
+> (use IPEADATA `GM366_IBVSP366`); **EMBI+ is not in SGS at all** (use IPEADATA
+> `JPM366_EMBI366` — SGS 21619, which reads plausibly as a spread, is the EUR/BRL
+> exchange rate); and **SGS 11/12 are percent-per-DAY rates, not annual**, so
+> compounding them as annual understates the accrual by roughly 252×. The IMA index
+> codes listed here also do not resolve. See `docs/03_implementation_guide.md` and
+> `src/fetch.py` for the verified source list.
+
 The `python-bcb` library provides free access to the BCB SGS system. Core data series:
 
 ```python
@@ -328,7 +338,7 @@ simple_returns = data.pct_change().dropna()            # For aggregation/reporti
 
 ### Free versus paid data
 
-All BCB SGS series (Ibovespa, CDI, IMA-B, IMA-B 5+, IPCA, PTAX) are **freely available** via `python-bcb`. The `pyield` library fetches recent ANBIMA indicative rates and B3 futures data without requiring a paid subscription. **IDA-DI historical time series**, detailed IMA compositions, and intraday data require ANBIMA Feed API credentials (paid for non-members). Free alternatives include ETF proxies (IMAB11, IB5M11) via Yahoo Finance, and synthetic CDI + spread series constructed from public debenture data.
+CDI, Selic, IPCA, IGP-M and PTAX are **freely available** from the BCB SGS REST API, directly or via `python-bcb`. Ibovespa and EMBI+ Brazil are **not** in SGS; both are free from IPEADATA's OData API. Neither are the IMA total-return indices — but full daily NTN-B, LTN, NTN-F and LFT unit prices and yields are free from Tesouro Transparente back to December 2004, which is enough to build constant-maturity total-return series directly (see `src/fetch.py`). **IDA-DI historical series**, detailed IMA compositions, and intraday data still require ANBIMA Feed API credentials. Yahoo Finance ETF proxies (IMAB11, IB5M11) are a fallback, but they only start in 2019 and are unreachable from some network environments, so they are not used here.
 
 ---
 
