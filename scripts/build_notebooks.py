@@ -7,7 +7,7 @@ Run once: python3 build_notebooks.py
 import nbformat as nbf
 from pathlib import Path
 
-NB_DIR = Path(__file__).parent / "notebooks"
+NB_DIR = Path(__file__).parent.parent / "notebooks"
 NB_DIR.mkdir(exist_ok=True)
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ This notebook:
 3. Produces a data availability / coverage heatmap
 4. Cross-validates synthetic bond returns against ETF proxies (2019+)
 
-> **Run once** — subsequent notebooks load from `data/processed/master_returns.parquet`
+> **Run once** — subsequent notebooks load from `data/processed/master_returns.csv`
 """),
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -76,10 +76,10 @@ CRISIS_COLORS = {
 
 ASSET_LABELS = {
     "ibov":      "Ibovespa",
-    "ntnb":      "NTN-B 5yr (real yield)",
-    "ltn":       "LTN 2yr (prefixed)",
-    "ntnf":      "NTN-F 10yr (prefixed coupon)",
-    "lft_proxy": "LFT proxy (CDI-compound)",
+    "ntnb":      "NTN-B 5y",
+    "ltn":       "LTN 2y",
+    "ntnf":      "NTN-F 10y",
+    "lft": "LFT 1y (Tesouro Selic)",
     "ptax":      "BRL/USD",
 }
 
@@ -110,7 +110,7 @@ Check which series have data on each day — important for understanding sample 
 """),
 
 code("""
-ret_cols = ["ibov", "ntnb", "ltn", "ntnf", "lft_proxy"]
+ret_cols = ["ibov", "ntnb", "ltn", "ntnf", "lft"]
 
 # Monthly availability matrix (1 = data present, 0 = NaN)
 avail = master[ret_cols].resample("ME").apply(lambda x: x.notna().mean())
@@ -146,7 +146,7 @@ This is the key context chart — it shows each asset's trajectory across all ma
 
 code("""
 # Rebuild cumulative return indices (base = 100 on first common date)
-ret_cols = ["ibov", "ntnb", "ltn", "ntnf", "lft_proxy"]
+ret_cols = ["ibov", "ntnb", "ltn", "ntnf", "lft"]
 sub = master[ret_cols].dropna(how="all")
 
 # Start all series from the first date where ALL return cols have data
@@ -167,7 +167,7 @@ for i, col in enumerate(ret_cols):
             lw=1.5, color=colors[i])
 add_crisis_bands(ax)
 ax.set_yscale("log")
-ax.set_ylabel("Cumulative return index\n(log scale, base=100)", fontsize=10)
+ax.set_ylabel("Cumulative return index\\n(log scale, base=100)", fontsize=10)
 ax.set_title("Brazilian asset classes: cumulative total return (2005–2026)", fontsize=13)
 
 # Add regime labels at top
@@ -246,58 +246,81 @@ plt.savefig("../outputs/fig_macro_validation.png", dpi=150, bbox_inches="tight")
 plt.show()
 """),
 
-md("""## 5. Cross-validate synthetic bond returns against ETFs (2019+)
+md("""## 5. Validate the constant-maturity construction
 
-The synthetic NTN-B return series (built from Tesouro PU data) should
-track IMAB11 ETF returns closely. Any divergence indicates roll-event
-artifacts in the constant-maturity construction.
+Two independent checks that the bond series are built correctly:
+
+1. **LFT vs CDI.** The 1-year Tesouro Selic total return is built from observed PU,
+   entirely independently of the CDI series. It must track compounded CDI closely —
+   if it does not, the PU roll or the return calculation is wrong.
+2. **Roll and coupon diagnostics.** Rolls (a change in the selected maturity) and
+   coupon payment dates are the two places a constant-maturity construction can
+   inject a spurious return. Neither should show up as an outlier.
 """),
 
 code("""
-# Overlap window: 2019-05-20 to present
-overlap = master.dropna(subset=["imab_etf_ret", "ntnb"]).copy()
-overlap = overlap[["ntnb", "ltn", "imab_etf_ret", "irfm_etf_ret"]]
-
-# Cumulative returns from overlap start
-base = overlap.index[0]
-cum = np.exp(overlap.cumsum()) * 100
+# ── 1. LFT (observed PU) vs CDI (independent BCB series) ──────────────────────
+chk = master[["lft", "cdi_ret"]].dropna()
+lft_cum = np.exp(chk["lft"].cumsum())
+cdi_cum = np.exp(chk["cdi_ret"].cumsum())
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
 
-# NTN-B vs IMAB11
 ax = axes[0]
-ax.plot(cum.index, cum["ntnb"],       label="Synthetic NTN-B (Tesouro PU)",
-        lw=1.8, color="#d62728")
-ax.plot(cum.index, cum["imab_etf_ret"], label="IMAB11 ETF",
-        lw=1.5, color="#1f77b4", ls="--")
+ax.plot(lft_cum.index, lft_cum, label="LFT 1y (Tesouro Selic PU)", lw=1.8, color="#2ca02c")
+ax.plot(cdi_cum.index, cdi_cum, label="Compounded CDI (BCB SGS 12)", lw=1.4,
+        color="#1f77b4", ls="--")
 add_crisis_bands(ax)
-ax.set_title("NTN-B 5yr synthetic vs IMAB11 ETF", fontsize=11)
-ax.set_ylabel("Cumulative return (base=100)")
+ax.set_yscale("log")
+ax.set_ylabel("Growth of 1 unit (log scale)")
+ax.set_title("LFT total return vs compounded CDI", fontsize=11)
 ax.legend(fontsize=9)
+ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
-# LTN vs IRFM11
+# ── 2. The LFT desagio: where the two series come apart ───────────────────────
 ax = axes[1]
-ax.plot(cum.index, cum["ltn"],        label="Synthetic LTN (Tesouro PU)",
-        lw=1.8, color="#ff7f0e")
-ax.plot(cum.index, cum["irfm_etf_ret"], label="IRFM11 ETF",
-        lw=1.5, color="#9467bd", ls="--")
+gap = (lft_cum / cdi_cum - 1) * 100
+ax.plot(gap.index, gap, lw=1.4, color="#d62728")
 add_crisis_bands(ax)
-ax.set_title("LTN 2yr synthetic vs IRFM11 ETF", fontsize=11)
-ax.legend(fontsize=9)
-
-for ax in axes:
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-
-# Correlation check
-r_ntnb_etf = overlap["ntnb"].corr(overlap["imab_etf_ret"])
-r_ltn_etf  = overlap["ltn"].corr(overlap["irfm_etf_ret"])
-print(f"Correlation NTN-B synthetic vs IMAB11: {r_ntnb_etf:.4f}")
-print(f"Correlation LTN synthetic  vs IRFM11: {r_ltn_etf:.4f}")
-print("\\n(Values > 0.95 confirm synthetic series are reliable proxies)")
+ax.axhline(0, color="black", lw=0.8, ls="--")
+ax.set_ylabel("LFT cumulative return minus CDI (%)")
+ax.set_title("Tracking gap — widens when LFTs trade at a desagio", fontsize=11)
+ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
 plt.tight_layout()
-plt.savefig("../outputs/fig_etf_crossval.png", dpi=150, bbox_inches="tight")
+plt.savefig("../outputs/fig_lft_cdi_crossval.png", dpi=150, bbox_inches="tight")
 plt.show()
+
+rho  = chk["lft"].corr(chk["cdi_ret"])
+drift = (chk["lft"].mean() - chk["cdi_ret"].mean()) * 252 * 100
+print(f"Correlation LFT vs CDI daily returns : {rho:.4f}")
+print(f"Annualised return gap (LFT - CDI)    : {drift:+.2f} pp")
+print(f"LFT cumulative x{lft_cum.iloc[-1]:.2f}  |  CDI cumulative x{cdi_cum.iloc[-1]:.2f}")
+print("\\n(rho > 0.9 and |gap| < 1pp confirm the PU-based construction is sound)")
+"""),
+
+code("""
+# ── Roll and coupon diagnostics ───────────────────────────────────────────────
+# A roll (change of the selected maturity) or a coupon payment must not show up
+# as an outlier: if it does, the same-bond return or the coupon add-back is wrong.
+print("=== Mean |daily return| on roll days vs other days ===")
+for col in ["ntnb", "ltn", "ntnf", "lft"]:
+    roll_col = f"{col}_roll"
+    if roll_col not in master.columns:
+        continue
+    r  = master[col].abs()
+    rl = master[roll_col] == 1
+    print(f"  {ASSET_LABELS.get(col, col):22s} roll days: {r[rl].mean()*100:.4f}%  "
+          f"({rl.sum():>4} obs)   other days: {r[~rl].mean()*100:.4f}%  "
+          f"ratio {r[rl].mean()/r[~rl].mean():.2f}x")
+
+print("\\n=== Realised tenor of each constant-maturity series ===")
+for col, target in [("ntnb", 5.0), ("ltn", 2.0), ("ntnf", 10.0), ("lft", 1.0)]:
+    t = master[f"{col}_ttm"].dropna()
+    print(f"  {ASSET_LABELS.get(col, col):22s} target {target:4.1f}y   "
+          f"realised mean {t.mean():5.2f}y   "
+          f"mean |gap| {np.abs(t-target).mean():.2f}y   "
+          f"worst {np.abs(t-target).max():.2f}y")
 """),
 
 md("""## 6. Summary statistics table
@@ -308,7 +331,7 @@ Key stats per asset across full sample — this becomes Table A1 in the whitepap
 code("""
 from scipy import stats as scipy_stats
 
-ret_cols = ["ibov", "ntnb", "ltn", "ntnf", "lft_proxy"]
+ret_cols = ["ibov", "ntnb", "ltn", "ntnf", "lft"]
 df = master[ret_cols].dropna(how="all") * 100  # in percent
 
 rows = []
@@ -337,8 +360,8 @@ for col in ret_cols:
 summary = pd.DataFrame(rows).set_index("Asset")
 print("=== Full-sample summary statistics (log returns, daily) ===")
 print(summary.to_string())
-summary.to_csv("../outputs/tbl_summary_stats.csv")
-print("\\nSaved: outputs/tbl_summary_stats.csv")
+summary.to_csv("../outputs/nb_tbl_summary_stats.csv")
+print("\\nSaved: outputs/nb_tbl_summary_stats.csv")
 """),
 
 md("""## 7. Data quality report
@@ -347,7 +370,7 @@ Identify gaps, extreme values, and suspicious observations to flag in the method
 """),
 
 code("""
-ret_cols = ["ibov", "ntnb", "ltn", "ntnf", "lft_proxy"]
+ret_cols = ["ibov", "ntnb", "ltn", "ntnf", "lft"]
 df = master[ret_cols] * 100  # pct
 
 print("=== Extreme daily moves (|return| > 5%) ===")
@@ -371,16 +394,25 @@ print(nan_by_year[nan_by_year.sum(axis=1) > 0].to_string())
 md("""## ✅ Notebook 01 complete
 
 **What we have:**
-- `data/processed/master_returns.parquet` — 5,500+ rows, 2004–2026
-- Six asset series: Ibovespa, NTN-B, LTN, NTN-F, LFT proxy, BRL/USD
-- Macro levels: EMBI, CDI, Selic, IPCA, BRL/USD
-- ETF cross-check columns from 2019+
+- `data/processed/master_returns.csv` — ~5,600 rows, 2004–2026 (bonds from 2005-01-03)
+- Asset return series: Ibovespa, NTN-B 5y, LTN 2y, NTN-F 10y, LFT 1y, LFT long, BRL/USD
+- Macro levels: EMBI+ Brazil (bps), CDI (% p.a.), Selic, IPCA, BRL/USD
+- Per-bond diagnostics: realised tenor, quoted yield, roll flag
 - Event labels: `crisis`, `regime`
 
-**Key validation findings:**
-- Synthetic NTN-B series correlates > 0.95 with IMAB11 ETF → reliable proxy
-- EMBI spikes confirmed during all 6 crisis periods
-- No suspicious gaps in the main return columns
+**What the validation actually showed** — read the printed output above rather than
+this cell; the numbers are computed, not asserted. The checks that must pass:
+
+| Check | Pass condition |
+|-------|----------------|
+| LFT vs compounded CDI | rho > 0.9, annualised gap < 1pp |
+| Roll-day returns | not materially larger than non-roll days |
+| Realised tenor | close to the 5y / 2y / 10y / 1y targets |
+| EMBI level | a spread in basis points (median ~250), not an FX rate |
+| CDI level | 2–20% p.a. — a plausible Brazilian policy rate |
+
+`src/fetch.py::validate_master` runs the range and coverage checks automatically on
+every rebuild and prints a pass/fail line per series.
 
 **Next:** `02_descriptive.ipynb` — regime-split statistics and unconditional correlation matrices
 """),
@@ -429,13 +461,13 @@ plt.rcParams.update({
     "axes.grid": True, "grid.alpha": 0.3, "font.size": 11,
 })
 
-RET_COLS = ["ibov", "ntnb", "ltn", "ntnf", "lft_proxy"]
+RET_COLS = ["ibov", "ntnb", "ltn", "ntnf", "lft"]
 LABELS = {
     "ibov":      "Ibovespa",
-    "ntnb":      "NTN-B 5yr",
-    "ltn":       "LTN 2yr",
-    "ntnf":      "NTN-F 10yr",
-    "lft_proxy": "LFT (CDI)",
+    "ntnb":      "NTN-B 5y",
+    "ltn":       "LTN 2y",
+    "ntnf":      "NTN-F 10y",
+    "lft": "LFT 1y",
 }
 CRISIS_COLORS = {
     "GFC":"#d62728","Dilma":"#ff7f0e","Joesley":"#9467bd",
@@ -503,8 +535,8 @@ pivot_vol = all_stats.pivot_table(
 print("\\n=== Annualised volatility by regime (%) ===")
 print(pivot_vol.round(1).to_string())
 
-all_stats.to_csv("../outputs/tbl_regime_stats.csv", index=False)
-print("\\nSaved: outputs/tbl_regime_stats.csv")
+all_stats.to_csv("../outputs/nb_tbl_regime_stats.csv", index=False)
+print("\\nSaved: outputs/nb_tbl_regime_stats.csv")
 """),
 
 md("""## 2. Unconditional full-sample correlation matrix
@@ -539,9 +571,9 @@ plt.savefig("../outputs/fig_corr_full_sample.png", dpi=150, bbox_inches="tight")
 plt.show()
 
 # Highlight the key finding
-ibov_ntnb = corr_full.loc["Ibovespa", "NTN-B 5yr"]
-ibov_ltn  = corr_full.loc["Ibovespa", "LTN 2yr"]
-ibov_lft  = corr_full.loc["Ibovespa", "LFT (CDI)"]
+ibov_ntnb = corr_full.loc["Ibovespa", "NTN-B 5y"]
+ibov_ltn  = corr_full.loc["Ibovespa", "LTN 2y"]
+ibov_lft  = corr_full.loc["Ibovespa", "LFT 1y"]
 print(f"Key findings:")
 print(f"  Ibovespa vs NTN-B  : ρ = {ibov_ntnb:+.3f}")
 print(f"  Ibovespa vs LTN    : ρ = {ibov_ltn:+.3f}")
@@ -678,7 +710,7 @@ for i, col in enumerate(RET_COLS):
           f"skew={scipy_stats.skew(s):+.3f}  "
           f"exc.kurt={scipy_stats.kurtosis(s):.2f}")
 
-fig.suptitle("Q-Q plots vs normal distribution\n"
+fig.suptitle("Q-Q plots vs normal distribution\\n"
              "(deviation in tails = fat tails / non-normality)", fontsize=12)
 plt.tight_layout()
 plt.savefig("../outputs/fig_qq_plots.png", dpi=150, bbox_inches="tight")
@@ -720,7 +752,7 @@ for i in range(len(RET_COLS)):
             ax.set_xticks([]); ax.set_yticks([])
             for spine in ax.spines.values(): spine.set_visible(False)
 
-pg.figure.suptitle("Pairwise return scatter matrix\n"
+pg.figure.suptitle("Pairwise return scatter matrix\\n"
                    "(red dots = crisis periods, upper triangle = Pearson ρ)",
                    y=1.01, fontsize=12)
 pg.figure.set_size_inches(12, 11)
@@ -731,14 +763,15 @@ plt.show()
 
 md("""## ✅ Notebook 02 complete
 
-**Key findings:**
+**How to read these results.** The values are printed above; what follows is how to
+interpret them without overclaiming.
 
-| Finding | Implication |
-|---------|-------------|
-| Full-sample ρ(Ibovespa, NTN-B) > 0 | Bonds don't hedge equities on average — confirming Brazil as a permanent positive-correlation market |
-| Correlations are strongly regime-dependent | Time-varying methods (DCC-GARCH) are necessary |
-| Crisis-period heatmap shows simultaneous losses | "Triple whammy" — stocks, bonds, AND currency sell off together |
-| Jarque-Bera strongly rejects normality | Gaussian VaR understates tail risk; copulas + ES are appropriate |
+| Result | Legitimate reading | Over-reading to avoid |
+|--------|-------------------|----------------------|
+| Full-sample ρ(Ibovespa, NTN-B) is positive but small | Brazilian bonds do **not hedge** equities: they never reliably rally when equities fall | "Diversification fails." A correlation near zero still reduces portfolio variance substantially — *not a hedge* is not the same as *not a diversifier* |
+| Correlations vary across regimes | Motivates time-varying methods (notebook 04) | That the ranking is meaningful — notebook 03 §6 tests whether regimes actually differ, and mostly they cannot be distinguished |
+| Crisis-window returns | Describes what happened in six specific episodes | That crises *cause* co-movement — notebook 03 §8 applies the Forbes-Rigobon correction, and most of the apparent spike is a volatility artefact |
+| Jarque-Bera rejects normality | Gaussian VaR understates the tails; copulas and ES are appropriate | That Gaussian VaR is therefore always conservative — horizon scaling can swamp the tail understatement in the other direction (notebook 07) |
 
 **Outputs saved:**
 - `fig_corr_full_sample.png` — Figure 2 (whitepaper)
@@ -797,8 +830,8 @@ CRISIS_COLORS = {
     "COVID":"#2ca02c","Americanas":"#8c564b","Fiscal24":"#e377c2",
 }
 LABELS = {
-    "ibov":"Ibovespa", "ntnb":"NTN-B 5yr",
-    "ltn":"LTN 2yr", "ntnf":"NTN-F 10yr", "lft_proxy":"LFT (CDI)",
+    "ibov":"Ibovespa", "ntnb":"NTN-B 5y",
+    "ltn":"LTN 2y", "ntnf":"NTN-F 10y", "lft":"LFT 1y",
 }
 
 def add_crisis_bands(ax, alpha=0.15):
@@ -816,7 +849,7 @@ correlation dynamics over two decades.
 
 code("""
 WINDOW = 252  # 1 trading year
-bond_cols = ["ntnb", "ltn", "ntnf", "lft_proxy"]
+bond_cols = ["ntnb", "ltn", "ntnf", "lft"]
 bond_colors = ["#d62728", "#ff7f0e", "#2ca02c", "#9467bd"]
 
 df_ret = master[["ibov"] + bond_cols].dropna(how="all")
@@ -842,7 +875,7 @@ ax.axvline(pd.Timestamp("2020-01-01"), color="navy", lw=1.5, ls=":",
 ax.set_ylim(-0.7, 0.8)
 ax.set_ylabel(f"Rolling {WINDOW}-day Pearson ρ", fontsize=11)
 ax.set_title(
-    f"Ibovespa vs. Brazilian bond indices: {WINDOW}-day rolling correlation\n"
+    f"Ibovespa vs. Brazilian bond indices: {WINDOW}-day rolling correlation\\n"
     "Brazil, 2005–2026",
     fontsize=13,
 )
@@ -877,7 +910,7 @@ bottom 10th percentile of observations — the "stress correlation."
 """),
 
 code("""
-RET_COLS_BONDS = ["ntnb", "ltn", "ntnf", "lft_proxy"]
+RET_COLS_BONDS = ["ntnb", "ltn", "ntnf", "lft"]
 df_ret = master[["ibov"] + RET_COLS_BONDS].dropna(how="all") * 100
 
 q10 = df_ret["ibov"].quantile(0.10)
@@ -904,7 +937,7 @@ cond_df = pd.DataFrame(results).set_index("Bond")
 print("=== Conditional tail correlations ===")
 print("(Positive Δ = correlations INCREASE during equity stress)")
 print(cond_df.to_string())
-cond_df.to_csv("../outputs/tbl_conditional_correlations.csv")
+cond_df.to_csv("../outputs/nb_tbl_conditional_correlations.csv")
 
 # Bar chart
 fig, ax = plt.subplots(figsize=(9, 4.5))
@@ -950,19 +983,25 @@ X = add_constant(df_pair["ntnb"].values)
 
 ols_res = OLS(y, X).fit()
 
-# CUSUM of squares
-cusum, pvals = breaks_cusumolsresid(ols_res.resid)
-dates_cusum  = df_pair.index
+# breaks_cusumolsresid returns THREE values -- (statistic, p-value, critical values) --
+# not a CUSUM path. The statistic is sup|W(t)| for the OLS-CUSUM process
+#     W(t) = (1 / (sigma_hat * sqrt(n))) * sum_{i<=nt} e_i,
+# so the path has to be built explicitly to plot it against its bands.
+stat, pval, crit_vals = breaks_cusumolsresid(ols_res.resid)
+crit = dict((lvl, c) for lvl, c in crit_vals)[5]        # 5% band for sup|W(t)|
+
+resid = ols_res.resid
+n     = len(resid)
+sigma = np.sqrt(np.sum(resid**2) / (n - X.shape[1]))
+cusum = np.cumsum(resid) / (sigma * np.sqrt(n))         # W(t), asymptotically a Brownian bridge
+dates_cusum = df_pair.index
 
 fig, axes = plt.subplots(2, 1, figsize=(13, 7), sharex=True)
 
-# CUSUM statistic
+# CUSUM path against its 5% boundary
 ax = axes[0]
-ax.plot(dates_cusum, cusum, color="#1f77b4", lw=1.5, label="CUSUM statistic")
-# 5% critical bands (±0.948 * sqrt(T) for recursive CUSUM)
-T    = len(cusum)
-crit = 0.948 * np.sqrt(T)
-ax.axhline( crit, color="#d62728", ls="--", lw=1.2, label="5% critical band")
+ax.plot(dates_cusum, cusum, color="#1f77b4", lw=1.5, label="OLS-CUSUM path W(t)")
+ax.axhline( crit, color="#d62728", ls="--", lw=1.2, label=f"5% band (+/-{crit})")
 ax.axhline(-crit, color="#d62728", ls="--", lw=1.2)
 ax.axhline(0, color="black", lw=0.6)
 for name, (s, e) in CRISES.items():
@@ -984,7 +1023,7 @@ for name, (s, e) in CRISES.items():
     ax2.axvspan(pd.Timestamp(s), pd.Timestamp(e),
                 color=CRISIS_COLORS[name], alpha=0.12)
 ax2.set_ylabel("Pearson ρ")
-ax2.set_title("Rolling correlation: Ibovespa vs. NTN-B 5yr", fontsize=12)
+ax2.set_title("Rolling correlation: Ibovespa vs. NTN-B 5y", fontsize=12)
 ax2.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 ax2.xaxis.set_major_locator(mdates.YearLocator(2))
 ax2.legend(fontsize=9)
@@ -993,10 +1032,23 @@ plt.tight_layout()
 plt.savefig("../outputs/fig_cusum_break_test.png", dpi=150, bbox_inches="tight")
 plt.show()
 
-# Check if CUSUM exceeds bounds (= structural break evidence)
-exceeds = np.any(np.abs(cusum) > crit)
-print(f"CUSUM exceeds 5% critical band: {exceeds}")
-print("→ Provides evidence of structural instability in Ibovespa–NTN-B relationship")
+exceeds = bool(np.max(np.abs(cusum)) > crit)
+print("=== OLS-CUSUM test (Brown, Durbin & Evans 1975) ===")
+print(f"  H0: the Ibovespa ~ NTN-B relationship is stable over the sample")
+print(f"  sup|W(t)|      : {np.max(np.abs(cusum)):.3f}   (statsmodels: {stat:.3f})")
+print(f"  p-value        : {pval:.3f}")
+print(f"  5% band        : +/-{crit}")
+print(f"  crosses band   : {exceeds}")
+print()
+if pval < 0.05:
+    print("  -> Rejects stability: there is evidence of a structural break.")
+else:
+    print("  -> Does NOT reject stability at the 5% level.")
+    print("     Note what this does and does not say. Failing to reject is not proof")
+    print("     of a stable relationship, and it is not inconsistent with the regime")
+    print("     variation in the correlations above: CUSUM has low power against slow")
+    print("     drift, and this regression is dominated by equity variance because")
+    print("     Ibovespa volatility is roughly 5x NTN-B volatility.")
 """),
 
 md("""## 4. Spearman vs Pearson: is the relationship monotonic?
@@ -1056,42 +1108,211 @@ with Brazil's regime comparison.
 """),
 
 code("""
-pairs = [("ibov","ntnb"), ("ibov","ltn"), ("ibov","ntnf"), ("ibov","lft_proxy")]
+pairs = [("ibov","ntnb"), ("ibov","ltn"), ("ibov","ntnf"), ("ibov","lft")]
 pair_labels = {
     ("ibov","ntnb"):      "Ibovespa × NTN-B",
     ("ibov","ltn"):       "Ibovespa × LTN",
     ("ibov","ntnf"):      "Ibovespa × NTN-F",
-    ("ibov","lft_proxy"): "Ibovespa × LFT",
+    ("ibov","lft"): "Ibovespa × LFT",
 }
 
+from metrics import corr_with_ci, bootstrap_corr_diff
+
 rows = {}
-for name, (s, e) in list(REGIMES.items()) + [("Full sample", ("2004-01-01","2026-03-13"))]:
+for name, (s, e) in list(REGIMES.items()) + [("Full sample", ("2004-01-01","2026-12-31"))]:
     sub = master[(master.index >= s) & (master.index <= e)]
     row = {}
     for a, b in pairs:
-        pair = sub[[a, b]].dropna()
-        if len(pair) > 20:
-            row[pair_labels[(a,b)]] = round(pair[a].corr(pair[b]), 3)
-        else:
-            row[pair_labels[(a,b)]] = np.nan
+        r = corr_with_ci(sub[a], sub[b])
+        row[pair_labels[(a,b)]]        = round(r["rho"], 3) if np.isfinite(r["rho"]) else np.nan
+        row[pair_labels[(a,b)] + " CI"] = (f"[{r['lo']:+.3f},{r['hi']:+.3f}]"
+                                           if np.isfinite(r["rho"]) else "")
+        row[pair_labels[(a,b)] + " sig"] = "*" if r["sig"] else ""
+    row["n"] = len(sub[["ibov","ntnb"]].dropna())
     rows[name] = row
 
 regime_corr_tbl = pd.DataFrame(rows).T
-print("=== Regime-average Pearson correlations ===")
-print(regime_corr_tbl.to_string())
-regime_corr_tbl.to_csv("../outputs/tbl_regime_correlations.csv")
-print("\\nSaved: outputs/tbl_regime_correlations.csv")
+print("=== Regime correlations with 95% Fisher-z confidence intervals ===")
+print("(* = interval excludes zero)\\n")
+for name in regime_corr_tbl.index:
+    r = regime_corr_tbl.loc[name]
+    print(f"{name:<22} n={int(r['n']):>5}  " +
+          "   ".join(f"{lbl.split(' × ')[1]}: {r[lbl]:+.3f} {r[lbl+' CI']}{r[lbl+' sig']}"
+                     for lbl in pair_labels.values()))
+regime_corr_tbl.to_csv("../outputs/nb_tbl_regime_correlations.csv")
+print("\\nSaved: outputs/nb_tbl_regime_correlations.csv")
+"""),
+
+md("""## 6. Are the regime differences statistically distinguishable?
+
+A table of point estimates ordered from low to high invites a story about regime
+change. Before telling it, test whether the ordering survives sampling error.
+
+Each regime holds 700–1,300 daily observations, so a correlation has a standard error
+of roughly 0.03. Differences smaller than about 0.08 are not distinguishable from
+noise, however clean the ranking looks. We use a stationary block bootstrap
+(21-day blocks) so the test is not inflated by the serial dependence in daily returns.
+"""),
+
+code("""
+base = "Lula Boom"          # the earliest, and on point estimates the calmest, regime
+bs, be = REGIMES[base]
+b_sub = master[(master.index >= bs) & (master.index <= be)][["ibov","ntnb"]].dropna()
+
+rows = []
+for name, (s, e) in REGIMES.items():
+    if name == base:
+        continue
+    sub = master[(master.index >= s) & (master.index <= e)][["ibov","ntnb"]].dropna()
+    t = bootstrap_corr_diff(sub["ibov"], sub["ntnb"],
+                            b_sub["ibov"], b_sub["ntnb"], n_boot=1500, block=21)
+    rows.append({"Regime": name,
+                 f"rho - rho({base})": round(t["diff"], 3),
+                 "bootstrap SE": round(t["boot_se"], 3),
+                 "p-value": round(t["p"], 3),
+                 "differs at 5%": "yes" if t["p"] < 0.05 else "no"})
+
+diff_tbl = pd.DataFrame(rows).set_index("Regime")
+print(f"=== Regime correlation vs {base}: block-bootstrap tests ===")
+print(diff_tbl.to_string())
+diff_tbl.to_csv("../outputs/nb_tbl_regime_difference_tests.csv")
+print("\\nAny row reading 'no' means that regime's correlation is NOT statistically")
+print("distinguishable from the baseline, and the narrative should not lean on it.")
+"""),
+
+md("""## 7. Return frequency: does the horizon change the answer?
+
+Every result so far uses **daily** returns. The stock-bond correlation literature this
+study is replicating — Campbell, Pflueger & Viceira (2020), Portelli & Roncalli (2024),
+and the IMF note — works at monthly or quarterly horizons.
+
+That choice is not cosmetic. Daily returns carry microstructure noise and
+non-synchronous pricing: the Ibovespa close, the Tesouro PU reference price and the
+CDI accrual are not struck at the same instant. Both effects attenuate correlation
+toward zero. If the macro co-movement the paper is about lives at business-cycle
+frequency, a daily estimate will systematically understate it.
+"""),
+
+code("""
+rows = []
+for lab, rule in [("daily", None), ("weekly", "W-FRI"), ("monthly", "ME"), ("quarterly", "QE")]:
+    for a, b in pairs:
+        x = master[[a, b]].dropna()
+        if rule:
+            x = x.resample(rule).sum()          # log returns aggregate by summing
+            x = x[(x != 0).any(axis=1)]
+        r = corr_with_ci(x[a], x[b])
+        rows.append({"Frequency": lab, "Pair": pair_labels[(a,b)], "n": r["n"],
+                     "rho": round(r["rho"], 3),
+                     "95% CI": f"[{r['lo']:+.3f},{r['hi']:+.3f}]",
+                     "sig": "*" if r["sig"] else ""})
+
+freq_tbl = pd.DataFrame(rows)
+wide = freq_tbl.pivot(index="Pair", columns="Frequency", values="rho")[
+    ["daily","weekly","monthly","quarterly"]]
+print("=== Ibovespa x bond correlation by return frequency ===")
+print(wide.to_string())
+print("\\n=== With confidence intervals ===")
+for _, r in freq_tbl.iterrows():
+    print(f"  {r['Frequency']:<10} {r['Pair']:<20} n={r['n']:>5}  "
+          f"rho={r['rho']:+.3f}  {r['95% CI']}{r['sig']}")
+freq_tbl.set_index(["Frequency","Pair"]).to_csv("../outputs/nb_tbl_frequency_robustness.csv")
+
+fig, ax = plt.subplots(figsize=(9, 4.5))
+for pair_lbl in wide.index:
+    ax.plot(range(4), wide.loc[pair_lbl], marker="o", lw=1.8, label=pair_lbl)
+ax.set_xticks(range(4)); ax.set_xticklabels(["daily","weekly","monthly","quarterly"])
+ax.axhline(0, color="black", lw=0.8, ls="--")
+ax.set_ylabel("Pearson rho with Ibovespa")
+ax.set_title("Stock-bond correlation rises with the return horizon\\n"
+             "Daily estimates understate the macro co-movement", fontsize=11)
+ax.legend(fontsize=9)
+plt.tight_layout()
+plt.savefig("../outputs/fig_frequency_robustness.png", dpi=150, bbox_inches="tight")
+plt.show()
+"""),
+
+md("""## 8. Forbes-Rigobon: is the crisis correlation surge real?
+
+This is the test the crisis-correlation claim stands or falls on.
+
+Forbes & Rigobon (2002) showed that a measured correlation is conditional on market
+volatility: when the variance of the source market rises, the sample correlation is
+**mechanically biased upward** even if the underlying propagation mechanism is
+completely unchanged. Applying that correction, they found the apparent correlation
+surges during the 1997 Asian crisis, the 1994 Mexican devaluation and the 1987 crash
+largely disappeared — the markets were not more connected, only more volatile.
+
+Brazilian crisis windows have equity variance 5–10x the calm level, so this correction
+is not optional here. The adjusted estimate is
+
+$$\\\\rho^* = \\\\frac{\\\\rho_c}{\\\\sqrt{1 + \\\\delta(1 - \\\\rho_c^2)}}, \\\\qquad
+  \\\\delta = \\\\frac{\\\\sigma^2_{crisis}}{\\\\sigma^2_{calm}} - 1$$
+
+**"Contagion"** means ρ* still exceeds the calm-period correlation. Otherwise what
+looks like a correlation spike is only **interdependence** — the same relationship,
+observed through a higher-variance lens.
+"""),
+
+code("""
+from metrics import forbes_rigobon
+
+calm = master[master["crisis"] == "Calm"]
+assert len(calm) > 1000, "calm window empty — check the crisis label"
+
+rows = []
+for cname, (s, e) in CRISES.items():
+    k = master[(master.index >= s) & (master.index <= e)]
+    for col in ["ntnb", "ltn", "ntnf"]:
+        o = forbes_rigobon(calm["ibov"], calm[col], k["ibov"], k[col])
+        rows.append({"Crisis": cname, "Bond": LABELS[col], "n": o["n_crisis"],
+                     "rho calm": round(o["rho_calm"], 3),
+                     "rho crisis (raw)": round(o["rho_crisis"], 3),
+                     "equity vol ratio": round(1 + o["delta"], 2),
+                     "rho adjusted": round(o["rho_adj"], 3),
+                     "verdict": {True: "contagion", False: "interdependence",
+                                 None: "n/a"}[o["contagion"]]})
+
+fr_tbl = pd.DataFrame(rows).set_index(["Crisis", "Bond"])
+print("=== Forbes-Rigobon volatility-adjusted crisis correlations ===")
+print(fr_tbl.to_string())
+fr_tbl.to_csv("../outputs/nb_tbl_forbes_rigobon.csv")
+
+sub = fr_tbl.xs("NTN-B 5y", level="Bond")
+fig, ax = plt.subplots(figsize=(10, 4.5))
+x = np.arange(len(sub)); w = 0.27
+ax.bar(x - w, sub["rho calm"],         w, label="Calm period",   color="#1f77b4")
+ax.bar(x,     sub["rho crisis (raw)"], w, label="Crisis (raw)",  color="#d62728")
+ax.bar(x + w, sub["rho adjusted"],     w, label="Crisis (vol-adjusted)", color="#2ca02c")
+ax.axhline(0, color="black", lw=0.8)
+ax.set_xticks(x); ax.set_xticklabels(sub.index, fontsize=9)
+ax.set_ylabel("Pearson rho (Ibovespa x NTN-B)")
+ax.set_title("Most of the crisis correlation spike is a volatility artefact\\n"
+             "Green above blue = genuine contagion; green below = interdependence only",
+             fontsize=11)
+ax.legend(fontsize=9)
+plt.tight_layout()
+plt.savefig("../outputs/fig_forbes_rigobon.png", dpi=150, bbox_inches="tight")
+plt.show()
 """),
 
 md("""## ✅ Notebook 03 complete
 
-**Key findings:**
-- Rolling 252-day Ibovespa × NTN-B correlation oscillates between –0.3 and +0.7, **never stabilising below zero** for sustained periods — unlike G4 markets pre-2020
-- Conditional tail correlation: bond returns **increase** their positive correlation with equities during the worst 10% of equity days → bonds fail precisely when needed
-- CUSUM test rejects parameter stability across the full sample → confirms multiple structural breaks
-- Spearman–Pearson divergence during crises motivates copula analysis
+The output above replaces four claims that the earlier version of this study asserted
+without testing. Read the printed values rather than this cell, but note what each
+section is now capable of falsifying:
 
-**Outputs:** `fig_rolling_correlation.png` (Figure 4), `fig_conditional_correlations.png` (Figure 5), `tbl_regime_correlations.csv`
+| Section | What it tests | Why it matters |
+|---------|---------------|----------------|
+| 5 | Regime correlations **with confidence intervals** | A regime whose interval spans zero cannot be described as diversifying or not diversifying. |
+| 6 | Whether regimes **differ from each other** | Ranking six point estimates is not evidence of regime change if the differences are inside the noise band. |
+| 7 | Whether the answer **survives the return horizon** | Daily correlations are attenuated by microstructure noise; the literature this replicates uses monthly data. |
+| 8 | Whether crisis correlation spikes **survive the volatility adjustment** | Forbes-Rigobon is cited in the methodology of this study; applying it is what makes the crisis claim testable rather than mechanical. |
+
+**Outputs:** `fig_rolling_correlation.png`, `fig_conditional_correlations.png`,
+`fig_frequency_robustness.png`, `fig_forbes_rigobon.png`,
+`tbl_regime_correlations.csv`, `tbl_regime_difference_tests.csv`,
+`tbl_frequency_robustness.csv`, `tbl_forbes_rigobon.csv`
 
 **Next:** `04_dcc_garch.ipynb` — formal time-varying correlation via DCC-GARCH
 """),
@@ -1099,9 +1320,6 @@ md("""## ✅ Notebook 03 complete
 ) # end nb03
 
 save(nb03, "03_rolling_corr.ipynb")
-
-print("\nAll notebooks written successfully.")
-print("To run: cd notebooks && jupyter notebook")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1147,8 +1365,8 @@ CRISIS_COLORS = {
     "GFC":"#d62728","Dilma":"#ff7f0e","Joesley":"#9467bd",
     "COVID":"#2ca02c","Americanas":"#8c564b","Fiscal24":"#e377c2",
 }
-LABELS = {"ibov":"Ibovespa","ntnb":"NTN-B 5yr","ltn":"LTN 2yr",
-          "ntnf":"NTN-F 10yr","lft_proxy":"LFT (CDI)"}
+LABELS = {"ibov":"Ibovespa","ntnb":"NTN-B 5y","ltn":"LTN 2y",
+          "ntnf":"NTN-F 10y","lft":"LFT 1y"}
 
 def add_crisis_bands(ax, alpha=0.15):
     for name, (s, e) in CRISES.items():
@@ -1159,7 +1377,7 @@ def add_crisis_bands(ax, alpha=0.15):
 md("""## 1. Stage 1: Fit univariate GARCH(1,1) per asset"""),
 
 code("""
-RET_COLS = ["ibov", "ntnb", "ltn", "ntnf", "lft_proxy"]
+RET_COLS = ["ibov", "ntnb", "ltn", "ntnf", "lft"]
 
 def fit_garch11(series, name=""):
     \"\"\"Fit GARCH(1,1) and return standardised residuals + conditional volatility.\"\"\"
@@ -1206,72 +1424,37 @@ print("Saved: outputs/fig_garch_volatility.png")
 
 md("""## 2. Stage 2: DCC parameter estimation
 
-Estimate DCC parameters (a, b) via maximum likelihood on the standardised residuals.
+Estimate the DCC parameters (a, b) by maximum likelihood on the standardised
+residuals, **with standard errors from the numerical Hessian**.
+
+`a` governs how strongly the conditional correlation responds to news. Reporting
+`a` without a standard error makes "correlations are time-varying" an assertion;
+with one it is a testable hypothesis (H0: a = 0). The estimator lives in
+`src/metrics.py::fit_dcc` and is unit-tested against simulated DCC processes with
+known parameters, including the degenerate constant-correlation case.
 """),
 
 code("""
-def dcc_loglik(params, eps, Qbar):
-    \"\"\"DCC log-likelihood (negative, for minimisation).\"\"\"
-    a, b = params
-    if a <= 0 or b <= 0 or a + b >= 1:
-        return 1e10
-    n, k = eps.shape
-    Q  = Qbar.copy()
-    ll = 0.0
-    for t in range(k, n):
-        e = eps[t-1]
-        Q = (1-a-b)*Qbar + a*np.outer(e,e) + b*Q
-        d = np.sqrt(np.diag(Q))
-        R = Q / np.outer(d, d)
-        sign, logdet = np.linalg.slogdet(R)
-        if sign <= 0:
-            return 1e10
-        et   = eps[t]
-        rinv = np.linalg.inv(R)
-        ll  += -0.5 * (logdet + et @ rinv @ et - et @ et)
-    return -ll
-
-def extract_dcc_rho(eps, a, b, Qbar):
-    \"\"\"Extract time-varying correlation path given DCC parameters.\"\"\"
-    Q   = Qbar.copy()
-    rho = []
-    for t in range(len(eps)):
-        e = eps[t-1] if t > 0 else eps[0]
-        Q = (1-a-b)*Qbar + a*np.outer(e,e) + b*Q
-        d = np.sqrt(np.diag(Q))
-        R = Q / np.outer(d, d)
-        rho.append(R[0, 1])
-    return np.array(rho)
-
-def fit_dcc(col_a, col_b, label=""):
-    \"\"\"Fit DCC between two assets and return time-varying rho.\"\"\"
-    # Align standardised residuals
-    sa = std_resids[col_a].dropna()
-    sb = std_resids[col_b].dropna()
-    common = sa.index.intersection(sb.index)
-    eps  = np.column_stack([sa.loc[common].values, sb.loc[common].values])
-    Qbar = eps.T @ eps / len(eps)
-
-    result = minimize(dcc_loglik, [0.05, 0.90],
-                      args=(eps, Qbar),
-                      method='L-BFGS-B',
-                      bounds=[(0.001, 0.3), (0.600, 0.999)],
-                      options={'maxiter': 200})
-    a_hat, b_hat = result.x
-    rho_vals = extract_dcc_rho(eps, a_hat, b_hat, Qbar)
-    rho_ts   = pd.Series(rho_vals, index=common, name=f"rho_{col_a}_{col_b}")
-
-    print(f"  {label:<28} a={a_hat:.4f}  b={b_hat:.4f}  "
-          f"persist={a_hat+b_hat:.4f}  "
-          f"mean_rho={rho_ts.mean():.3f}")
-    return rho_ts, a_hat, b_hat
+from metrics import fit_dcc
 
 print("=== DCC-GARCH(1,1) parameter estimates ===")
+print(f"  {'pair':<28} {'a':>8} {'SE(a)':>8} {'t(a)':>7} {'b':>8} "
+      f"{'persist':>8} {'mean rho':>9} {'sd rho':>7}")
+
 dcc_results = {}
-pairs = [("ibov","ntnb"), ("ibov","ltn"), ("ibov","ntnf"), ("ibov","lft_proxy")]
-for a, b in pairs:
-    rho, a_hat, b_hat = fit_dcc(a, b, f"Ibovespa × {LABELS[b]}")
-    dcc_results[(a,b)] = {"rho": rho, "a": a_hat, "b": b_hat}
+pairs = [("ibov","ntnb"), ("ibov","ltn"), ("ibov","ntnf"), ("ibov","lft")]
+for ca, cb in pairs:
+    f = fit_dcc(std_resids[ca], std_resids[cb])
+    dcc_results[(ca, cb)] = f
+    flag = ("  <- not identified" if not f["identified"]
+            else "  <- a>0 at 5%" if f["t_a"] > 1.96 else "")
+    print(f"  {'Ibovespa x ' + LABELS[cb]:<28} {f['a']:>8.4f} {f['se_a']:>8.4f} "
+          f"{f['t_a']:>7.2f} {f['b']:>8.4f} {f['persistence']:>8.4f} "
+          f"{f['rho'].mean():>9.3f} {f['rho'].std():>7.3f}{flag}")
+
+print("\\nH0: a = 0 (constant conditional correlation). |t| > 1.96 rejects at 5%.")
+print("A pair that fails to reject is NOT evidence of crisis correlation spikes,")
+print("however suggestive the plotted path looks.")
 """),
 
 md("""## 3. The DCC correlation chart — Figure 6
@@ -1281,7 +1464,7 @@ complement to the rolling window chart in notebook 03.
 """),
 
 code("""
-bond_cols  = ["ntnb", "ltn", "ntnf", "lft_proxy"]
+bond_cols  = ["ntnb", "ltn", "ntnf", "lft"]
 colors     = ["#d62728","#ff7f0e","#2ca02c","#9467bd"]
 
 fig, ax = plt.subplots(figsize=(14, 5.5))
@@ -1298,7 +1481,7 @@ ax.axvline(pd.Timestamp("2020-01-01"), color="navy",
 ax.set_ylim(-0.3, 0.5)
 ax.set_ylabel("DCC-GARCH daily conditional correlation ρ_t", fontsize=11)
 ax.set_title(
-    "DCC-GARCH(1,1): Ibovespa vs. Brazilian bond indices — daily conditional correlation\n"
+    "DCC-GARCH(1,1): Ibovespa vs. Brazilian bond indices — daily conditional correlation\\n"
     "Brazil, 2004–2026  (Engle 2002)",
     fontsize=13,
 )
@@ -1379,28 +1562,51 @@ md("""## 5. Crisis-period DCC correlation summary table"""),
 
 code("""
 rows = []
-for cname, (s, e) in list(CRISES.items()) + [("Full sample", ("2004-01-01","2026-03-13"))]:
+for cname, (s, e) in list(CRISES.items()) + [("Full sample", ("2004-01-01","2026-12-31"))]:
     row = {"Period": cname}
-    for a, b in [("ibov","ntnb"),("ibov","ltn"),("ibov","lft_proxy")]:
-        rho = dcc_results[(a,b)]["rho"]
+    for ca, cb in [("ibov","ntnb"),("ibov","ltn"),("ibov","ntnf"),("ibov","lft")]:
+        rho = dcc_results[(ca,cb)]["rho"]
         mask = (rho.index >= s) & (rho.index <= e)
-        row[f"ρ Ibov×{LABELS[b][:5]}"] = round(rho[mask].mean(), 3)
+        row[f"Ibov x {LABELS[cb]}"] = round(rho[mask].mean(), 3) if mask.sum() else np.nan
     rows.append(row)
 
 dcc_tbl = pd.DataFrame(rows).set_index("Period")
 print("=== DCC-GARCH average conditional correlation by period ===")
 print(dcc_tbl.to_string())
-dcc_tbl.to_csv("../outputs/tbl_dcc_crisis_correlations.csv")
-print("\\nSaved: outputs/tbl_dcc_crisis_correlations.csv")
+dcc_tbl.to_csv("../outputs/nb_tbl_dcc_crisis_correlations.csv")
+
+# A crisis average above the full-sample average is only suggestive: the DCC path is
+# itself estimated from returns whose variance explodes in a crisis. Notebook 03's
+# Forbes-Rigobon table is the test of whether that elevation survives the volatility
+# adjustment.
+fs = dcc_tbl.loc["Full sample"]
+print("\\n=== Crisis elevation relative to the full sample ===")
+for cname in CRISES:
+    r = dcc_tbl.loc[cname]
+    parts = "  ".join(f"{c.split(' x ')[1]}: {r[c]/fs[c]:.2f}x" for c in dcc_tbl.columns
+                      if np.isfinite(r[c]) and abs(fs[c]) > 1e-6)
+    print(f"  {cname:12s} {parts}")
+print("\\nSaved: outputs/nb_tbl_dcc_crisis_correlations.csv")
 """),
 
 md("""## ✅ Notebook 04 complete
 
-**Key DCC findings:**
-- Persistence a+b ≈ 0.9996 — correlations are highly persistent, slow mean-reversion
-- ρ_t spikes during COVID and Americanas confirming crisis-driven co-movement
-- EMBI explains a significant share of DCC correlation variance — sovereign risk is the driver
-- LFT correlation stays near zero throughout — no interest rate channel, no crisis spike
+**What to read off the output above** (values are computed, not asserted here):
+
+| Question | Where to look |
+|----------|---------------|
+| Are correlations genuinely time-varying? | `t(a)` in the stage-2 table. \\|t\\| > 1.96 rejects a = 0. |
+| How persistent? | `persist` = a + b. Near 1 means shocks to correlation decay slowly. |
+| Do correlations spike in crises? | The elevation table — but see the caveat below. |
+| Is the LFT pair meaningful? | It is flagged *not identified*: the LFT return series is
+  near-deterministic, so its conditional correlation path is degenerate by construction
+  and its DCC row should not be interpreted. |
+
+**Caveat on crisis spikes.** A DCC path that rises in a crisis is not by itself evidence
+that the propagation mechanism strengthened. The conditional correlation is estimated
+from returns whose variance rises several-fold in the same window, and Forbes & Rigobon
+(2002) show that this alone biases measured correlation upward. Notebook 03 reports the
+volatility-adjusted comparison; treat that as the test and this table as the description.
 
 **Next:** `05_copula.ipynb` — tail dependence coefficients
 """),
@@ -1453,98 +1659,25 @@ CRISIS_COLORS = {
     "COVID":"#2ca02c","Americanas":"#8c564b","Fiscal24":"#e377c2",
 }
 
-def pseudo_obs(df):
-    \"\"\"Convert returns to uniform pseudo-observations via rank transform.\"\"\"
-    n = len(df)
-    return pd.DataFrame({c: rankdata(df[c]) / (n + 1) for c in df.columns},
-                        index=df.index)
-"""),
+# All copula densities live in src/metrics.py and are unit-tested (tests/test_metrics.py):
+#   - each density integrates to 1 over the unit square
+#   - Gumbel collapses to c == 1 at theta = 1 (the independence copula)
+#   - Student-t converges to Gaussian as nu -> infinity
+#   - fitting Clayton-simulated data recovers Clayton and its theta
+# Getting a copula density wrong does not raise an error, it silently returns a
+# likelihood for a function that is not a density -- and then AIC picks that family.
+from metrics import (pseudo_obs, fit_all_copulas, tail_dependence_empirical,
+                     gaussian_logpdf, student_t_logpdf, clayton_logpdf, gumbel_logpdf,
+                     fit_gaussian, fit_student_t, fit_clayton, fit_gumbel)
 
-md("""## 1. Copula fitting functions"""),
-
-code("""
-# ── Gaussian copula ───────────────────────────────────────────────────────────
-def gaussian_copula_ll(rho, u, v):
-    \"\"\"Gaussian copula log-likelihood.\"\"\"
-    if abs(rho) >= 1: return -1e10
-    x = stats.norm.ppf(u)
-    y = stats.norm.ppf(v)
-    ll = (- 0.5 * np.log(1 - rho**2)
-          - rho**2 * (x**2 + y**2) / (2*(1-rho**2))
-          + rho * x * y / (1-rho**2))
-    return ll.sum()
-
-def fit_gaussian(u, v):
-    res = minimize_scalar(lambda r: -gaussian_copula_ll(r, u, v),
-                          bounds=(-0.99, 0.99), method='bounded')
-    rho = res.x
-    ll  = -res.fun
-    return {"rho": rho, "ll": ll, "params": 1, "lambda_L": 0.0, "lambda_U": 0.0}
-
-# ── Student-t copula ──────────────────────────────────────────────────────────
-def t_copula_ll(params, u, v):
-    rho, nu = params
-    if abs(rho) >= 1 or nu <= 2: return 1e10
-    x = t_dist.ppf(u, df=nu)
-    y = t_dist.ppf(v, df=nu)
-    ll = (stats.multivariate_normal(cov=[[1,rho],[rho,1]]).logpdf(
-              np.column_stack([x, y]))
-          - t_dist.logpdf(x, df=nu)
-          - t_dist.logpdf(y, df=nu))
-    return -ll.sum()
-
-def fit_t(u, v):
-    res = minimize(t_copula_ll, [0.1, 5.0], args=(u, v),
-                   method='L-BFGS-B',
-                   bounds=[(-0.99,0.99),(2.01,50)])
-    rho, nu = res.x
-    ll = -res.fun
-    # t-copula tail dependence
-    lam = 2 * t_dist.cdf(-np.sqrt((nu+1)*(1-rho)/(1+rho)), df=nu+1)
-    return {"rho": rho, "nu": nu, "ll": ll, "params": 2,
-            "lambda_L": lam, "lambda_U": lam}
-
-# ── Clayton copula ────────────────────────────────────────────────────────────
-def clayton_ll(theta, u, v):
-    if theta <= 0: return 1e10
-    log_c = (np.log(1+theta)
-             - (1+theta)*(np.log(u)+np.log(v))
-             - (1/theta+2)*np.log(u**(-theta)+v**(-theta)-1))
-    return -log_c.sum()
-
-def fit_clayton(u, v):
-    res = minimize_scalar(lambda t: clayton_ll(t, u, v),
-                          bounds=(0.001, 30), method='bounded')
-    theta = res.x
-    ll    = -res.fun
-    lam_L = 2**(-1/theta)
-    return {"theta": theta, "ll": ll, "params": 1,
-            "lambda_L": lam_L, "lambda_U": 0.0}
-
-# ── Gumbel copula ─────────────────────────────────────────────────────────────
-def gumbel_ll(theta, u, v):
-    if theta < 1: return 1e10
-    lu, lv = -np.log(u), -np.log(v)
-    A   = (lu**theta + lv**theta)**(1/theta)
-    c   = (np.exp(-A) / (u * v)
-           * A**(2-2*theta)
-           * (lu*lv)**(theta-1)
-           * (A**(theta) + theta - 1))
-    if np.any(c <= 0): return 1e10
-    return -np.log(c).sum()
-
-def fit_gumbel(u, v):
-    res = minimize_scalar(lambda t: gumbel_ll(t, u, v),
-                          bounds=(1.001, 20), method='bounded')
-    theta = res.x
-    ll    = -res.fun
-    lam_U = 2 - 2**(1/theta)
-    return {"theta": theta, "ll": ll, "params": 1,
-            "lambda_L": 0.0, "lambda_U": lam_U}
-
-# ── Model selection ───────────────────────────────────────────────────────────
-def aic(ll, k): return -2*ll + 2*k
-def bic(ll, k, n): return -2*ll + k*np.log(n)
+# sanity check, cheap and worth running every time
+import numpy as _np
+_g = (_np.arange(200) + 0.5) / 200
+_U, _V = _np.meshgrid(_g, _g)
+_mass = _np.exp(gumbel_logpdf(2.0, _U.ravel(), _V.ravel())).sum() / 200**2
+assert abs(_mass - 1) < 0.05, f"Gumbel density does not integrate to 1 ({_mass:.3f})"
+assert _np.allclose(gumbel_logpdf(1.0, _U.ravel(), _V.ravel()), 0.0, atol=1e-9)
+print("Copula densities OK (integrate to 1; Gumbel -> independence at theta=1)")
 """),
 
 md("""## 2. Fit and compare all copulas — Ibovespa × NTN-B"""),
@@ -1555,82 +1688,82 @@ u_df    = pseudo_obs(df_pair)
 u, v    = u_df["ibov"].values, u_df["ntnb"].values
 n       = len(u)
 
-print("Fitting copulas (Ibovespa × NTN-B 5yr)...")
-fits = {
-    "Gaussian": fit_gaussian(u, v),
-    "Student-t": fit_t(u, v),
-    "Clayton":   fit_clayton(u, v),
-    "Gumbel":    fit_gumbel(u, v),
-}
+print(f"Fitting copulas (Ibovespa x NTN-B 5y, n={n:,})...")
+fits = fit_all_copulas(u, v)          # returned already sorted by AIC
 
-rows = []
-for name, fit in fits.items():
-    rows.append({
-        "Copula":   name,
-        "Log-lik":  round(fit["ll"], 1),
-        "AIC":      round(aic(fit["ll"], fit["params"]), 1),
-        "BIC":      round(bic(fit["ll"], fit["params"], n), 1),
-        "λ_L":      round(fit["lambda_L"], 4),
-        "λ_U":      round(fit["lambda_U"], 4),
-        "Key param": (f"ρ={fit.get('rho',0):.3f}" if name=="Gaussian"
-                      else f"ρ={fit.get('rho',0):.3f}, ν={fit.get('nu',0):.1f}" if name=="Student-t"
-                      else f"θ={fit.get('theta',0):.3f}"),
-    })
+rows = [{
+    "Copula":    f["family"],
+    "Log-lik":   round(f["ll"], 1),
+    "AIC":       round(f["AIC"], 1),
+    "BIC":       round(f["BIC"], 1),
+    "lambda_L":  round(f["lambda_L"], 4),
+    "lambda_U":  round(f["lambda_U"], 4),
+    "Key param": f["param"],
+} for f in fits]
 
 fit_tbl = pd.DataFrame(rows).set_index("Copula")
 print(fit_tbl.to_string())
-fit_tbl.to_csv("../outputs/tbl_copula_fit.csv")
+fit_tbl.to_csv("../outputs/nb_tbl_copula_fit.csv")
 print("\\nBest fit (lowest AIC):", fit_tbl['AIC'].idxmin())
-print("Lower tail dependence λ_L:")
+print("\\nParametric tail dependence:")
 for n_, row in fit_tbl.iterrows():
-    print(f"  {n_:<12} λ_L = {row['λ_L']:.4f}")
+    print(f"  {n_:<12} lambda_L = {row['lambda_L']:.4f}   lambda_U = {row['lambda_U']:.4f}")
+
+# The parametric lambdas are only as good as the family that wins AIC. The empirical
+# exceedance rate makes no distributional assumption at all, so quote both.
+emp = tail_dependence_empirical(u, v, q=0.05)
+print(f"\\nEmpirical 5% tail dependence (independence benchmark = 0.050):")
+print(f"  lambda_L = {emp['lambda_L']:.3f}   lambda_U = {emp['lambda_U']:.3f}")
+print(f"  co-crash observations: {emp['n_co_lower']} vs {emp['expected_indep']:.0f} "
+      f"expected under independence ({emp['n_co_lower']/emp['expected_indep']:.1f}x)")
 """),
 
 md("""## 3. Tail dependence across all asset pairs"""),
 
 code("""
-bond_pairs = [("ibov","ntnb"),("ibov","ltn"),("ibov","ntnf"),("ibov","lft_proxy")]
-LABELS = {"ibov":"Ibovespa","ntnb":"NTN-B 5yr","ltn":"LTN 2yr",
-          "ntnf":"NTN-F 10yr","lft_proxy":"LFT (CDI)"}
+bond_pairs = [("ibov","ntnb"),("ibov","ltn"),("ibov","ntnf"),("ibov","lft")]
+LABELS = {"ibov":"Ibovespa","ntnb":"NTN-B 5y","ltn":"LTN 2y",
+          "ntnf":"NTN-F 10y","lft":"LFT 1y"}
 
 summary_rows = []
-for a, b in bond_pairs:
-    df_p = master[[a,b]].dropna() * 100
+for ca, cb in bond_pairs:
+    df_p = master[[ca,cb]].dropna() * 100
     uu   = pseudo_obs(df_p)
-    ui, vi = uu[a].values, uu[b].values
-    n_p  = len(ui)
+    ui, vi = uu[ca].values, uu[cb].values
 
-    f_gauss = fit_gaussian(ui, vi)
-    f_t     = fit_t(ui, vi)
-    f_clay  = fit_clayton(ui, vi)
-
-    best = min([("Gaussian",f_gauss),("Student-t",f_t),("Clayton",f_clay)],
-               key=lambda x: aic(x[1]["ll"], x[1]["params"]))
+    fits_p = fit_all_copulas(ui, vi)
+    best   = fits_p[0]
+    emp_p  = tail_dependence_empirical(ui, vi, q=0.05)
 
     summary_rows.append({
-        "Pair":       f"{LABELS[a]} × {LABELS[b]}",
-        "Best copula": best[0],
-        "ρ (Gaussian)": round(f_gauss["rho"], 3),
-        "ρ (t-cop)":    round(f_t["rho"], 3),
-        "ν (t-cop)":    round(f_t.get("nu",0), 1),
-        "θ (Clayton)":  round(f_clay.get("theta",0), 3),
-        "λ_L (Clayton)": round(f_clay["lambda_L"], 4),
-        "λ_L (t-cop)":   round(f_t["lambda_L"], 4),
+        "Pair":            f"{LABELS[ca]} x {LABELS[cb]}",
+        "n":               len(ui),
+        "Best copula":     best["family"],
+        "Best param":      best["param"],
+        "lambda_L (fit)":  round(best["lambda_L"], 4),
+        "lambda_U (fit)":  round(best["lambda_U"], 4),
+        "lambda_L (emp)":  round(emp_p["lambda_L"], 3),
+        "lambda_U (emp)":  round(emp_p["lambda_U"], 3),
+        "co-crash obs":    emp_p["n_co_lower"],
+        "expected indep":  round(emp_p["expected_indep"], 0),
     })
-    print(f"{LABELS[a]} × {LABELS[b]}: "
-          f"best={best[0]}  λ_L(Clayton)={f_clay['lambda_L']:.4f}  "
-          f"λ_L(t-cop)={f_t['lambda_L']:.4f}")
+    print(f"{LABELS[ca]} x {LABELS[cb]:<10} best={best['family']:<10} {best['param']:<22} "
+          f"emp lambda_L={emp_p['lambda_L']:.3f} lambda_U={emp_p['lambda_U']:.3f}  "
+          f"co-crash {emp_p['n_co_lower']} vs {emp_p['expected_indep']:.0f}")
+
+print("\\nlambda_L > lambda_U means the pair crashes together more than it booms together.")
+print("Both are compared against 0.050, the rate implied by independence.")
 
 summary_df = pd.DataFrame(summary_rows).set_index("Pair")
-summary_df.to_csv("../outputs/tbl_tail_dependence.csv")
-print("\\nSaved: outputs/tbl_tail_dependence.csv")
+summary_df.to_csv("../outputs/nb_tbl_tail_dependence.csv")
+print("\\nSaved: outputs/nb_tbl_tail_dependence.csv")
 print(summary_df.to_string())
 """),
 
 md("""## 4. Pseudo-observations scatter with tail quadrant analysis — Figure 7"""),
 
 code("""
-bond_cols = ["ntnb","ltn","ntnf","lft_proxy"]
+bond_cols = ["ntnb","ltn","ntnf","lft"]
 colors    = ["#d62728","#ff7f0e","#2ca02c","#9467bd"]
 
 fig, axes = plt.subplots(2, 2, figsize=(12, 11))
@@ -1663,24 +1796,24 @@ for i, (col, color) in enumerate(zip(bond_cols, colors)):
     in_ll = ((ui < q_lo) & (vi < q_lo)).sum()
     expected_indep = len(ui) * q_lo**2
     ax.text(0.02, 0.12,
-            f"Co-crash\nobserved: {in_ll}\nexpected (indep): {expected_indep:.0f}",
+            f"Co-crash\\nobserved: {in_ll}\\nexpected (indep): {expected_indep:.0f}",
             transform=ax.transAxes, fontsize=8.5, va="bottom",
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#d62728", alpha=0.8))
 
-    # Fit Clayton and annotate λ_L
-    f_clay = fit_clayton(ui, vi)
-    f_t    = fit_t(ui, vi)
-    ax.set_title(f"Ibovespa × {LABELS[col]}\n"
-                 f"Clayton λ_L={f_clay['lambda_L']:.3f}  "
-                 f"t-cop λ_L={f_t['lambda_L']:.3f}  "
-                 f"ν={f_t['nu']:.1f}",
-                 fontsize=9.5)
+    # Annotate with the empirical exceedance rates (no distributional assumption)
+    emp_i = tail_dependence_empirical(ui, vi, q=0.10)
+    best_i = fit_all_copulas(ui, vi)[0]
+    ax.set_title(f"Ibovespa x {LABELS[col]}\\n"
+                 f"best fit: {best_i['family']} ({best_i['param']})\\n"
+                 f"empirical 10% tail: lambda_L={emp_i['lambda_L']:.3f}  "
+                 f"lambda_U={emp_i['lambda_U']:.3f}  (indep = 0.100)",
+                 fontsize=9)
     ax.set_xlabel("Ibovespa (pseudo-obs u)", fontsize=9)
     ax.set_ylabel(f"{LABELS[col]} (pseudo-obs v)", fontsize=9)
     if i == 0:
         ax.legend(fontsize=7.5, loc="upper left")
 
-fig.suptitle("Copula pseudo-observations: joint tail behaviour\n"
+fig.suptitle("Copula pseudo-observations: joint tail behaviour\\n"
              "(lower-left quadrant = simultaneous crashes, "
              "dashed lines = 10th percentile thresholds)",
              fontsize=12, y=1.01)
@@ -1692,12 +1825,21 @@ print("Saved: outputs/fig_copula_scatter.png")
 
 md("""## ✅ Notebook 05 complete
 
-**Key copula findings:**
-- **Clayton copula** provides best fit for Ibovespa × NTN-B (lowest AIC)
-- Lower tail dependence λ_L > 0 confirms Brazilian assets **co-crash**
-- Co-crash observations in lower-left quadrant **exceed independence benchmark**
-- Student-t copula (symmetric tails) also fits well — consistent with Brazil-style crises
-- LFT proxy shows near-zero tail dependence, confirming its diversification role
+**How to read the output above.** Two tail-dependence estimates are reported and they
+answer slightly different questions:
+
+- **Parametric λ** comes from whichever family wins on AIC. It is only meaningful if
+  that family actually describes the data, so it inherits all of the family's
+  assumptions — a Student-t fit, for instance, *imposes* λ_L = λ_U and therefore
+  cannot detect asymmetry even if it is present.
+- **Empirical λ** is the raw exceedance rate P(V < q | U < q), with no distributional
+  assumption. Compare it against `q` itself, which is the rate implied by independence.
+  This is the estimate to quote when the question is "do these assets crash together
+  more often than chance?"
+
+Where the two disagree, prefer the empirical one and say so. Reporting only the
+parametric λ from a mis-specified family is how a copula analysis ends up asserting
+the opposite of what the data show.
 
 **Next:** `06_portfolio_metrics.ipynb` — Diversification Ratio, ENB, PCA
 """),
@@ -1749,10 +1891,10 @@ CRISIS_COLORS = {
     "GFC":"#d62728","Dilma":"#ff7f0e","Joesley":"#9467bd",
     "COVID":"#2ca02c","Americanas":"#8c564b","Fiscal24":"#e377c2",
 }
-LABELS = {"ibov":"Ibovespa","ntnb":"NTN-B 5yr","ltn":"LTN 2yr",
-          "ntnf":"NTN-F 10yr","lft_proxy":"LFT (CDI)"}
+LABELS = {"ibov":"Ibovespa","ntnb":"NTN-B 5y","ltn":"LTN 2y",
+          "ntnf":"NTN-F 10y","lft":"LFT 1y"}
 
-RET_COLS  = ["ibov","ntnb","ltn","ntnf","lft_proxy"]
+RET_COLS  = ["ibov","ntnb","ltn","ntnf","lft"]
 
 def add_crisis_bands(ax, alpha=0.15):
     for name, (s, e) in CRISES.items():
@@ -1763,33 +1905,15 @@ def add_crisis_bands(ax, alpha=0.15):
 md("""## 1. Portfolio metric functions"""),
 
 code("""
-def diversification_ratio(weights, cov):
-    \"\"\"DR = (w'σ) / sqrt(w'Σw). DR=1: no benefit. DR>1: genuine diversification.\"\"\"
-    w    = np.array(weights)
-    vols = np.sqrt(np.diag(cov))
-    port_vol = np.sqrt(w @ cov @ w)
-    if port_vol < 1e-12: return np.nan
-    return (w @ vols) / port_vol
+from metrics import diversification_ratio, effective_num_bets, pc1_share
 
-def effective_num_bets(weights, cov):
-    \"\"\"Meucci (2009) ENB via Shannon entropy of PC risk contributions.\"\"\"
-    w = np.array(weights)
-    eigvals, eigvecs = np.linalg.eigh(cov)
-    eigvals = np.maximum(eigvals, 0)
-    p = (eigvecs.T @ w)**2 * eigvals
-    s = p.sum()
-    if s < 1e-12: return np.nan
-    p /= s
-    p = p[p > 1e-12]
-    return float(np.exp(-np.sum(p * np.log(p))))
-
-def pc1_share(returns_window):
-    \"\"\"Fraction of variance explained by PC1.\"\"\"
-    X = StandardScaler().fit_transform(returns_window.dropna())
-    if X.shape[0] < X.shape[1] + 1: return np.nan
-    pca = PCA(n_components=1)
-    pca.fit(X)
-    return float(pca.explained_variance_ratio_[0])
+# DR  = (w'sigma) / sqrt(w'Sigma w).  1 = no benefit; upper bound grows with N.
+# ENB = exp(Shannon entropy of PC risk contributions), Meucci (2009).
+#       Bounded above by the NUMBER OF ASSETS -- for a 2-asset 60/40 the maximum is 2,
+#       so "ENB fell to 1.1" means little without stating that ceiling.
+# PC1 = share of variance on the first principal component of the CORRELATION matrix.
+#       Computed on whichever columns you pass, so pass the portfolio's own holdings
+#       if you intend to describe that portfolio.
 
 print("Metric functions defined.")
 print("  DR=1  → no diversification benefit")
@@ -1805,8 +1929,8 @@ WINDOW = 252
 # Three portfolio compositions
 PORTFOLIOS = {
     "60/40 Ibov-NTN-B":  {"ibov":0.60, "ntnb":0.40},
-    "40/40/20 +LTN":     {"ibov":0.40, "ntnb":0.40, "ltn":0.10, "lft_proxy":0.10},
-    "All-bond (excl.eq)":{"ntnb":0.50, "ltn":0.25, "ntnf":0.15, "lft_proxy":0.10},
+    "40/40/20 +LTN":     {"ibov":0.40, "ntnb":0.40, "ltn":0.10, "lft":0.10},
+    "All-bond (excl.eq)":{"ntnb":0.50, "ltn":0.25, "ntnf":0.15, "lft":0.10},
 }
 
 # Compute rolling metrics
@@ -1976,8 +2100,8 @@ ax.scatter([var_05], [covar_05], s=100, color="#d62728", zorder=5,
            label=f"CoVaR = {covar_05:.2f}%")
 
 ax.set_xlabel("Ibovespa daily return (%)", fontsize=11)
-ax.set_ylabel("NTN-B 5yr daily return (%)", fontsize=11)
-ax.set_title("CoVaR: quantile regression of NTN-B on Ibovespa\n"
+ax.set_ylabel("NTN-B 5y daily return (%)", fontsize=11)
+ax.set_title("CoVaR: quantile regression of NTN-B on Ibovespa\\n"
              "(ΔCoVaR = equity distress contribution to bond tail risk)",
              fontsize=12)
 ax.legend(fontsize=9)
@@ -2036,9 +2160,9 @@ from scipy.stats import norm
 from fetch import load_master, CRISES, REGIMES
 
 master  = load_master()
-df_ret  = master[["ibov","ntnb","ltn","ntnf","lft_proxy"]].dropna(how="all")
-LABELS  = {"ibov":"Ibovespa","ntnb":"NTN-B 5yr","ltn":"LTN 2yr",
-           "ntnf":"NTN-F 10yr","lft_proxy":"LFT (CDI)"}
+df_ret  = master[["ibov","ntnb","ltn","ntnf","lft"]].dropna(how="all")
+LABELS  = {"ibov":"Ibovespa","ntnb":"NTN-B 5y","ltn":"LTN 2y",
+           "ntnf":"NTN-F 10y","lft":"LFT 1y"}
 
 plt.rcParams.update({
     "figure.dpi":150,"figure.facecolor":"white",
@@ -2053,10 +2177,10 @@ CRISIS_COLORS = {
 # ── Portfolio definitions ─────────────────────────────────────────────────────
 PORTFOLIOS = {
     "60/40 (Ibov+NTN-B)":       {"ibov":0.60, "ntnb":0.40},
-    "Diversified (4 assets)":    {"ibov":0.40, "ntnb":0.30, "ltn":0.15, "lft_proxy":0.15},
+    "Diversified (4 assets)":    {"ibov":0.40, "ntnb":0.30, "ltn":0.15, "lft":0.15},
     "Equity heavy (80/20)":      {"ibov":0.80, "ntnb":0.20},
-    "Bond heavy (20/80)":        {"ibov":0.20, "ntnb":0.50, "ltn":0.20, "lft_proxy":0.10},
-    "LFT only (cash proxy)":     {"lft_proxy":1.00},
+    "Bond heavy (20/80)":        {"ibov":0.20, "ntnb":0.50, "ltn":0.20, "lft":0.10},
+    "LFT only (cash proxy)":     {"lft":1.00},
 }
 
 print("Portfolios defined:")
@@ -2096,10 +2220,37 @@ pnl_df = pd.DataFrame(rows).T
 pnl_df.index.name = "Portfolio"
 pnl_df.columns.name = "Crisis"
 
-print("=== Historical scenario P&L (%) ===")
+print("=== Historical scenario P&L: total return (%) ===")
 print(pnl_df.to_string())
-pnl_df.to_csv("../outputs/tbl_scenario_pnl.csv")
-print("\\nSaved: outputs/tbl_scenario_pnl.csv")
+pnl_df.to_csv("../outputs/nb_tbl_scenario_pnl_total.csv")
+
+# ── The same P&L in excess of CDI ────────────────────────────────────────────
+# Total return is the wrong lens for a diversification question in Brazil. The CDI
+# ran at 10-15% p.a. over most of this sample, so a seven-month crisis window accrues
+# ~7% of carry before any price move. A bond portfolio that "made money in the GFC"
+# may simply have earned carry while losing to cash. Excess-over-CDI is what a
+# Brazilian investor actually chooses between, since the alternative is always
+# holding Selic-linked cash.
+exc = {}
+for pname, weights in PORTFOLIOS.items():
+    row = {}
+    for cname, (s, e) in CRISES.items():
+        sub  = master[(master.index >= s) & (master.index <= e)]
+        port = sum(w * sub[c] for c, w in weights.items())
+        row[cname] = round((np.exp(port.sum()) - np.exp(sub["cdi_ret"].sum())) * 100, 1)
+    exc[pname] = row
+
+exc_df = pd.DataFrame(exc).T
+exc_df.index.name = "Portfolio"
+print("\\n=== Same episodes, in excess of CDI (percentage points) ===")
+print(exc_df.to_string())
+exc_df.to_csv("../outputs/nb_tbl_scenario_pnl_excess_cdi.csv")
+
+print("\\nNote how the two tables differ. Positive total returns during a crisis are")
+print("mostly carry: the LFT-only row is ~0.0 by definition in excess terms, because")
+print("holding Selic-linked cash IS the benchmark. Read the second table when the")
+print("question is whether diversification helped.")
+print("\\nSaved: outputs/nb_tbl_scenario_pnl_total.csv, tbl_scenario_pnl_excess_cdi.csv")
 """),
 
 code("""
@@ -2113,7 +2264,7 @@ sns.heatmap(
     cbar_kws={"label":"Total return (%)", "shrink":0.7},
     ax=ax,
 )
-ax.set_title("Portfolio P&L across historical crisis episodes (%)\n"
+ax.set_title("Portfolio P&L across historical crisis episodes (%)\\n"
              "(negative = loss, red = severe loss)", fontsize=12, pad=12)
 ax.set_xlabel(""); ax.set_ylabel("")
 plt.xticks(rotation=30, ha="right")
@@ -2126,47 +2277,61 @@ print("Saved: outputs/fig_scenario_heatmap.png")
 md("""## 2. Stressed VaR: calm vs. crisis covariance matrices"""),
 
 code("""
-def portfolio_var(weights, cov, alpha=0.99):
-    \"\"\"Gaussian 1-day VaR at confidence alpha (% of portfolio value).\"\"\"
-    w = np.array([weights.get(c, 0) for c in df_ret.columns
-                  if c in cov.columns])
-    cols = [c for c in df_ret.columns if c in cov.columns]
-    cov_sub = cov.loc[cols, cols].values
-    w_sub   = np.array([weights.get(c, 0) for c in cols])
-    port_vol = np.sqrt(w_sub @ cov_sub @ w_sub)
-    return -norm.ppf(1-alpha) * port_vol * np.sqrt(252) * 100
+from metrics import portfolio_var, shrink_to_equicorr
 
-# Covariance matrices (annualised)
-cov_full  = df_ret.cov() * 252
+# portfolio_var(weights, cov_DAILY, alpha, horizon_days) -> positive % loss.
+#
+# The horizon is an explicit argument because it is the single biggest lever on the
+# answer. Scaling a crisis-window daily covariance by sqrt(252) assumes crisis-level
+# volatility persists for a full year; on Brazilian crisis windows that produces 99%
+# VaR figures above 100% of capital for a long-only unlevered portfolio, which is
+# impossible rather than merely conservative. We quote a 10-day horizon, which is
+# both the Basel market-risk standard and comparable in length to the crisis windows
+# the covariances are estimated from.
+HORIZON_DAYS = 10
 
-crisis_covs = {}
+# DAILY covariance matrices — portfolio_var applies the horizon itself
+cov_full = df_ret.dropna().cov()
+
+# A k-asset covariance needs materially more than k observations to be usable.
+# The Joesley window is 11 trading days against 5 assets, so it is excluded rather
+# than silently producing a number with no precision behind it.
+MIN_OBS = 30
+crisis_covs, skipped = {}, {}
 for cname, (s, e) in CRISES.items():
-    mask = (df_ret.index >= s) & (df_ret.index <= e)
-    period = df_ret[mask].dropna(how="all")
-    if len(period) > 10:
-        crisis_covs[cname] = period.cov() * 252
+    period = df_ret[(df_ret.index >= s) & (df_ret.index <= e)].dropna()
+    if len(period) >= MIN_OBS:
+        crisis_covs[cname] = period.cov()
+    else:
+        skipped[cname] = len(period)
 
-# VaR table
-print("=== 99% 1-year Gaussian VaR (%) ===")
-print(f"{'Portfolio':<30}  {'Calm':<8}", end="")
-for cname in crisis_covs: print(f"  {cname:<12}", end="")
+print(f"=== 99% {HORIZON_DAYS}-day Gaussian VaR (% of capital) ===")
+print(f"{'Portfolio':<26}  {'Calm':>8}", end="")
+for cname in crisis_covs: print(f"  {cname:>11}", end="")
 print()
 
 var_rows = {}
 for pname, weights in PORTFOLIOS.items():
-    var_calm = portfolio_var(weights, cov_full)
+    var_calm = portfolio_var(weights, cov_full, 0.99, HORIZON_DAYS)
     var_row  = {"Calm (full sample)": round(var_calm, 1)}
+    print(f"{pname:<26}  {var_calm:>8.1f}", end="")
     for cname, cov_c in crisis_covs.items():
-        var_c = portfolio_var(weights, cov_c)
-        var_row[cname] = round(var_c, 1)
+        v = portfolio_var(weights, cov_c, 0.99, HORIZON_DAYS)
+        var_row[cname] = round(v, 1)
+        print(f"  {v:>11.1f}", end="")
     var_rows[pname] = var_row
-    print(f"{pname:<30}  {var_calm:<8.1f}", end="")
-    for cname in crisis_covs: print(f"  {var_row[cname]:<12.1f}", end="")
     print()
 
 var_df = pd.DataFrame(var_rows).T
-var_df.to_csv("../outputs/tbl_stressed_var.csv")
-print("\\nSaved: outputs/tbl_stressed_var.csv")
+var_df.to_csv("../outputs/nb_tbl_stressed_var.csv")
+
+for cname, n_ in skipped.items():
+    print(f"\\nSKIPPED {cname}: {n_} trading days < {MIN_OBS} required for a "
+          f"{df_ret.shape[1]}x{df_ret.shape[1]} covariance.")
+
+assert var_df.max().max() < 100, "VaR above 100% of capital — check the horizon scaling"
+print("\\nSanity check passed: no VaR exceeds 100% of capital.")
+print("Saved: outputs/nb_tbl_stressed_var.csv")
 """),
 
 md("""## 3. Correlation stress: shrink toward equicorrelation"""),
@@ -2196,8 +2361,8 @@ w_arr   = np.array(list(PORTFOLIOS[pname].values()))
 stress_vars = []
 for alpha in alphas:
     cov_s    = shrink_to_equicorr(cov_sub, alpha)
-    port_vol = np.sqrt(w_arr @ cov_s @ w_arr)
-    var_pct  = -norm.ppf(0.01) * port_vol * np.sqrt(252) * 100
+    port_vol = np.sqrt(w_arr @ cov_s @ w_arr)          # cov_sub is a DAILY covariance
+    var_pct  = -norm.ppf(0.01) * port_vol * np.sqrt(HORIZON_DAYS) * 100
     stress_vars.append(var_pct)
 
 fig, ax = plt.subplots(figsize=(9, 4.5))
@@ -2212,7 +2377,7 @@ ax.text(55, stress_vars[-1]+0.3, f"Worst case: {stress_vars[-1]:.1f}%", fontsize
 
 ax.set_xlabel("Equicorrelation stress (α%): 0=current, 100=all ρ=1", fontsize=10)
 ax.set_ylabel("99% 1-year VaR (%)", fontsize=10)
-ax.set_title(f"Correlation stress test: {pname}\n"
+ax.set_title(f"Correlation stress test: {pname}\\n"
              "How much does VaR increase as correlations approach +1?",
              fontsize=11)
 ax.legend(fontsize=9)
@@ -2249,7 +2414,7 @@ for i, (cname, (s, e)) in enumerate(CRISES.items()):
 
     ibov_cum = (np.exp(period["ibov"].cumsum()) - 1) * 100
     ntnb_cum = (np.exp(period["ntnb"].cumsum()) - 1) * 100
-    lft_cum  = (np.exp(period["lft_proxy"].cumsum()) - 1) * 100
+    lft_cum  = (np.exp(period["lft"].cumsum()) - 1) * 100
 
     ax.plot(ibov_cum.index, ibov_cum, color="#1f77b4", lw=1.5,
             alpha=0.7, label="Ibovespa")
@@ -2262,7 +2427,7 @@ for i, (cname, (s, e)) in enumerate(CRISES.items()):
 
     ax.axhline(0, color="gray", ls="--", lw=0.7)
     n_days = len(period)
-    ax.set_title(f"{cname}  ({s[:7]}–{e[:7]})\n{n_days} trading days",
+    ax.set_title(f"{cname}  ({s[:7]}–{e[:7]})\\n{n_days} trading days",
                  fontsize=10, fontweight="bold",
                  color=CRISIS_COLORS[cname])
     ax.set_ylabel("Cumulative return (%)", fontsize=8.5)
@@ -2270,7 +2435,7 @@ for i, (cname, (s, e)) in enumerate(CRISES.items()):
     if i == 0:
         ax.legend(fontsize=7.5, loc="lower left")
 
-fig.suptitle("60/40 Portfolio (Ibovespa + NTN-B): performance during each crisis\n"
+fig.suptitle("60/40 Portfolio (Ibovespa + NTN-B): performance during each crisis\\n"
              "Diversification fails — stocks and bonds fall together",
              fontsize=13, y=1.01, fontweight="bold")
 plt.tight_layout()
@@ -2319,3 +2484,6 @@ md("""## ✅ Notebook 07 complete — Study fully quantified
 
 ) # end nb07
 save(nb07, "07_stress_test.ipynb")
+
+print("\nAll notebooks written successfully.")
+print("To run: cd notebooks && jupyter notebook")

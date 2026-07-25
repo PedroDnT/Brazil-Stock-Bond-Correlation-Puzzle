@@ -11,22 +11,40 @@
 ```
 project/
 ├── data/
-│   ├── raw/          # BCB SGS pulls, Tesouro CSV
-│   └── processed/    # Clean returns, aligned dates
+│   ├── raw/          # BCB SGS, IPEADATA, Tesouro CSV
+│   └── processed/    # master_returns.csv — aligned returns + levels + event labels
 ├── notebooks/
-│   ├── 01_data.ipynb
+│   ├── 01_data.ipynb            # pipeline + construction validation
 │   ├── 02_descriptive.ipynb
-│   ├── 03_rolling_corr.ipynb
+│   ├── 03_rolling_corr.ipynb    # + frequency robustness, Forbes-Rigobon
 │   ├── 04_dcc_garch.ipynb
 │   ├── 05_copula.ipynb
 │   ├── 06_portfolio_metrics.ipynb
-│   └── 07_stress_test.ipynb
+│   ├── 07_stress_test.ipynb
+│   └── 08_global_macro.ipynb    # hand-maintained; needs FRED_API_KEY
 ├── src/
-│   ├── fetch.py      # All data ingestion
-│   ├── metrics.py    # DR, ENB, CoVaR
-│   └── plots.py      # Reusable chart functions
-└── outputs/          # All charts/tables for whitepaper
+│   ├── fetch.py      # All data ingestion + validate_master()
+│   └── metrics.py    # Inference, Forbes-Rigobon, copulas, DCC, DR/ENB/PC1, VaR
+├── tests/
+│   ├── test_metrics.py          # 28 unit tests for the estimators
+│   └── test_paper_consistency.py # 49 tests: paper numbers vs outputs/
+├── scripts/
+│   ├── run_analysis.py          # regenerates every table in the paper
+│   └── build_notebooks.py       # generates notebooks 01-07
+├── config/plot_style.py         # shared matplotlib rcParams (apply_style())
+└── outputs/          # All charts/tables for the paper
 ```
+
+**Why estimators live in `src/metrics.py` rather than in the notebooks.** A copula
+density with a wrong exponent does not raise an error — it returns a likelihood for a
+function that is not a density, and AIC then selects it over the correct families. The
+same applies to a DCC likelihood, a VaR horizon, or a heteroskedasticity correction:
+these fail silently and produce plausible numbers. Keeping them in one importable
+module makes them unit-testable, and `tests/test_metrics.py` asserts the properties
+that catch exactly this class of error — densities integrating to 1, copulas
+collapsing to independence at their independence parameter, the DCC recovering known
+simulated parameters, and VaR never exceeding 100% of capital for a long-only
+unlevered portfolio.
 
 ---
 
