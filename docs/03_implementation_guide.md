@@ -11,22 +11,40 @@
 ```
 project/
 ├── data/
-│   ├── raw/          # BCB SGS pulls, Tesouro CSV
-│   └── processed/    # Clean returns, aligned dates
+│   ├── raw/          # BCB SGS, IPEADATA, Tesouro CSV
+│   └── processed/    # master_returns.csv — aligned returns + levels + event labels
 ├── notebooks/
-│   ├── 01_data.ipynb
+│   ├── 01_data.ipynb            # pipeline + construction validation
 │   ├── 02_descriptive.ipynb
-│   ├── 03_rolling_corr.ipynb
+│   ├── 03_rolling_corr.ipynb    # + frequency robustness, Forbes-Rigobon
 │   ├── 04_dcc_garch.ipynb
 │   ├── 05_copula.ipynb
 │   ├── 06_portfolio_metrics.ipynb
-│   └── 07_stress_test.ipynb
+│   ├── 07_stress_test.ipynb
+│   └── 08_global_macro.ipynb    # hand-maintained; needs FRED_API_KEY
 ├── src/
-│   ├── fetch.py      # All data ingestion
-│   ├── metrics.py    # DR, ENB, CoVaR
-│   └── plots.py      # Reusable chart functions
-└── outputs/          # All charts/tables for whitepaper
+│   ├── fetch.py      # All data ingestion + validate_master()
+│   └── metrics.py    # Inference, Forbes-Rigobon, copulas, DCC, DR/ENB/PC1, VaR
+├── tests/
+│   ├── test_metrics.py          # 28 unit tests for the estimators
+│   └── test_paper_consistency.py # 49 tests: paper numbers vs outputs/
+├── scripts/
+│   ├── run_analysis.py          # regenerates every table in the paper
+│   └── build_notebooks.py       # generates notebooks 01-07
+├── config/plot_style.py         # shared matplotlib rcParams (apply_style())
+└── outputs/          # All charts/tables for the paper
 ```
+
+**Why estimators live in `src/metrics.py` rather than in the notebooks.** A copula
+density with a wrong exponent does not raise an error — it returns a likelihood for a
+function that is not a density, and AIC then selects it over the correct families. The
+same applies to a DCC likelihood, a VaR horizon, or a heteroskedasticity correction:
+these fail silently and produce plausible numbers. Keeping them in one importable
+module makes them unit-testable, and `tests/test_metrics.py` asserts the properties
+that catch exactly this class of error — densities integrating to 1, copulas
+collapsing to independence at their independence parameter, the DCC recovering known
+simulated parameters, and VaR never exceeding 100% of capital for a long-only
+unlevered portfolio.
 
 ---
 
@@ -37,60 +55,71 @@ project/
 **Install dependencies:**
 
 ```bash
-pip install python-bcb pyield arch scipy statsmodels scikit-learn pandas matplotlib seaborn
+pip install -r requirements.txt
 ```
 
-**Core series to fetch (all free):**
+**Core series actually used** (implemented in `src/fetch.py`; verified against the
+live APIs, not copied from a catalogue):
 
-| Series         | BCB SGS code | Start      | Notes                    |
-| -------------- | ------------ | ---------- | ------------------------ |
-| Ibovespa       | 7            | 2003-01-01 | Daily close              |
-| CDI            | 11           | 2003-01-01 | Daily rate               |
-| Selic target   | 432          | 2003-01-01 | COPOM decisions          |
-| IPCA           | 433          | 2003-01-01 | Monthly, interpolate     |
-| PTAX (BRL/USD) | 1            | 2003-01-01 | Daily                    |
-| IMA-B          | 12466        | 2004-01-01 | NTN-B total return index |
-| IMA-B 5        | 12467        | 2004-01-01 | Short NTN-B              |
-| IMA-B 5+       | 12468        | 2004-01-01 | Long NTN-B               |
-| IRF-M          | 12462        | 2004-01-01 | LTN/NTN-F prefixed       |
-| IMA-S          | 12463        | 2004-01-01 | LFT/Selic-linked         |
-| IMA-Geral      | 12469        | 2004-01-01 | Broad govts              |
-| EMBI+ Brazil   | 1895         | 2003-01-01 | Sovereign risk           |
+| Series | Source | Code | Units — read this column carefully |
+|--------|--------|------|------------------------------------|
+| Ibovespa daily close | IPEADATA | `GM366_IBVSP366` | index points, 1993– |
+| EMBI+ Brazil | IPEADATA | `JPM366_EMBI366` | **basis points**, ends Jul 2024 |
+| CDI | BCB SGS | 12 | **percent per DAY** (0.0420 ≈ 10.7% p.a.) |
+| Selic target | BCB SGS | 432 | percent per annum |
+| IPCA | BCB SGS | 433 | percent per month |
+| IGP-M | BCB SGS | 189 | percent per month |
+| PTAX BRL/USD | BCB SGS | 1 | BRL per USD |
+| NTN-B / LTN / NTN-F / LFT PU + yields | Tesouro Transparente | `PrecoTaxaTesouroDireto.csv` | R$ per unit, Dec 2004– |
 
-> ⚠️ SGS codes for IMA-S and IRF-M: verify at https://www3.bcb.gov.br/sgspub — search "IMA". Codes above are indicative.
+Three traps worth stating explicitly, because each one silently produces plausible
+numbers rather than an error:
+
+- **SGS 12 is a daily rate, not annual.** Compounding it as annual and taking a
+  252nd root understates the accrual by roughly two orders of magnitude, and
+  propagates into any Sharpe ratio computed against it.
+- **EMBI is not in the SGS system at all.** SGS code 21619, which reads plausibly as
+  a spread, is the EUR/BRL exchange rate. Use IPEADATA.
+- **Ibovespa is not in SGS as a daily series either.** IPEADATA has it back to 1993.
+
+Validate any series you add against a known historical value before using it: the
+Ibovespa should print 73,517 on 2008-05-20 and EMBI+ should print ~2,443bp at the
+September 2002 peak.
 
 **Fetch pattern:**
 
 ```python
-from bcb import sgs
-import pandas as pd
+import requests, pandas as pd
 
-raw = sgs.get({
-    'ibov': 7, 'cdi': 11, 'selic': 432,
-    'imab': 12466, 'imab5': 12467, 'imab5p': 12468,
-    'irfm': 12462, 'imas': 12463, 'ima_geral': 12469,
-    'ptax': 1, 'embi': 1895
-}, start='2003-01-01')
-# BCB paginates at 10yr windows — use multiple calls if needed
+# BCB SGS paginates at ~10-year windows; src/fetch.py chunks at 5 years.
+url = ("https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados"
+       "?formato=json&dataInicial=01/01/2004&dataFinal=31/12/2008")
+df = pd.DataFrame(requests.get(url, timeout=60).json())
+
+# IPEADATA OData. VALDATA carries a local UTC offset, so slice the date component
+# rather than converting timezones -- historical Brazilian DST transitions raise.
+url = "http://www.ipeadata.gov.br/api/odata4/ValoresSerie(SERCODIGO='GM366_IBVSP366')"
+v = pd.DataFrame(requests.get(url, timeout=180).json()["value"])
+v["d"] = pd.to_datetime(v["VALDATA"].str.slice(0, 10))
 ```
 
-**Tesouro bond yields (free, daily since Dec 2004):**
+**Bond total returns.** The Tesouro file gives unit prices, not returns. Two things
+must be handled or the series is wrong in ways that survive inspection:
 
-```python
-url = ("https://www.tesourotransparente.gov.br/ckan/dataset/"
-       "df56aa42-484a-4a59-8184-7676580c81e3/resource/"
-       "796d2059-14e9-44e3-80c9-2d9e30b405c1/download/"
-       "precotaxatesourodireto.csv")
-tesouro = pd.read_csv(url, sep=';', decimal=',',
-                      parse_dates=['Data Vencimento', 'Data Base'])
-```
+- **Rolls.** Take the return of the bond selected on the *previous* day. Differencing
+  across a change of maturity prices one bond against a different one.
+- **Coupons.** An untreated NTN-B coupon looks like a one-day loss of ~2.9% of VNA,
+  about 42 times over the sample. `src/fetch.py` recovers the face/VNA from the
+  bond's own quoted yield through a du/252 cashflow pricer, so no external VNA
+  series is needed. Validate the pricer on NTN-F, whose face is known to be 1,000.
 
-**🔒 ANBIMA-gated (buy later):** IDA-DI, IDA-IPCA, IDA-Geral for debenture total return index.  
-**Free proxy for now:** ETF prices via Yahoo Finance:
+**LFT.** Build it from observed Tesouro Selic prices. Defining the LFT return as
+compounded CDI makes "the LFT never loses money" true by construction and therefore
+untestable — and it hides that long LFTs drew down 1.33% in October 2020.
 
-- `IMAB11.SA` — IMA-B total return ETF
-- `IB5M11.SA` — IMA-B 5+ ETF
-- `DEBB11.SA` — Debenture DI ETF (limited history ~2024)
+**🔒 ANBIMA-gated (buy later):** IDA-DI, IDA-IPCA, IDA-Geral for a debenture total
+return index. Note that Yahoo Finance (`IMAB11.SA`, `IB5M11.SA`) is unreachable from
+some environments and is not used by the current pipeline.
 
 ---
 

@@ -1,5 +1,14 @@
-# ── Enhanced Plot style ───────────────────────────────────────────────────────
-plt.rcParams.update({
+"""Shared matplotlib style for all study notebooks.
+
+Usage:
+    import sys; sys.path.insert(0, "../config")
+    from plot_style import apply_style
+    apply_style()
+"""
+
+import matplotlib.pyplot as plt
+
+RCPARAMS = {
     "figure.dpi": 150,
     "figure.facecolor": "white",
     "axes.facecolor": "white",
@@ -24,4 +33,9 @@ plt.rcParams.update({
     "legend.edgecolor": "#CCCCCC",
     "lines.linewidth": 1.8,
     "lines.markersize": 6,
-})
+}
+
+
+def apply_style():
+    """Apply the study-wide matplotlib rcParams."""
+    plt.rcParams.update(RCPARAMS)

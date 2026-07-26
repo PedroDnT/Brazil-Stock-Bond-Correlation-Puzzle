@@ -5,12 +5,11 @@ seaborn
 scipy
 statsmodels
 scikit-learn
-yfinance
 arch
-python-bcb
-pyield
-pyarrow
+requests
 nbformat
 nbconvert
+ipykernel
+pytest
 vaderSentiment
 python-dotenv
