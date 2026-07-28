@@ -211,6 +211,56 @@ def test_bootstrap_corr_diff_detects_a_real_difference():
     assert out["p"] < 0.05
 
 
+def test_bootstrap_did_detects_convergence():
+    """
+    Country A's correlation rises from -0.4 to +0.1; the benchmark B stays at +0.4.
+    The difference-in-differences must be positive and significant.
+    """
+    rng = np.random.default_rng(20)
+
+    def draw(rho, n):
+        return rng.multivariate_normal([0, 0], [[1, rho], [rho, 1]], n)
+
+    a0, a1 = draw(-0.4, 180), draw(0.1, 180)
+    b0, b1 = draw(0.4, 180), draw(0.4, 180)
+    out = M.bootstrap_did((a0[:, 0], a0[:, 1]), (a1[:, 0], a1[:, 1]),
+                          (b0[:, 0], b0[:, 1]), (b1[:, 0], b1[:, 1]),
+                          n_boot=600, block=6)
+    assert out["did"] > 0.3
+    assert out["p"] < 0.05
+
+
+def test_bootstrap_did_null_is_not_rejected():
+    """Both countries shift by the same amount — DiD is zero, no convergence."""
+    rng = np.random.default_rng(21)
+
+    def draw(rho, n):
+        return rng.multivariate_normal([0, 0], [[1, rho], [rho, 1]], n)
+
+    a0, a1 = draw(-0.3, 200), draw(0.0, 200)
+    b0, b1 = draw(0.2, 200), draw(0.5, 200)      # same +0.3 shift
+    out = M.bootstrap_did((a0[:, 0], a0[:, 1]), (a1[:, 0], a1[:, 1]),
+                          (b0[:, 0], b0[:, 1]), (b1[:, 0], b1[:, 1]),
+                          n_boot=600, block=6)
+    assert abs(out["did"]) < 0.2
+    assert out["p"] > 0.05
+
+
+def test_bootstrap_did_is_antisymmetric():
+    """Swapping the country and the benchmark must flip the sign of the DiD."""
+    rng = np.random.default_rng(22)
+
+    def draw(rho, n):
+        return rng.multivariate_normal([0, 0], [[1, rho], [rho, 1]], n)
+
+    a0, a1, b0, b1 = draw(-0.4, 150), draw(0.1, 150), draw(0.4, 150), draw(0.4, 150)
+    fwd = M.bootstrap_did((a0[:, 0], a0[:, 1]), (a1[:, 0], a1[:, 1]),
+                          (b0[:, 0], b0[:, 1]), (b1[:, 0], b1[:, 1]), n_boot=200)
+    rev = M.bootstrap_did((b0[:, 0], b0[:, 1]), (b1[:, 0], b1[:, 1]),
+                          (a0[:, 0], a0[:, 1]), (a1[:, 0], a1[:, 1]), n_boot=200)
+    assert fwd["did"] == pytest.approx(-rev["did"], abs=1e-9)
+
+
 def test_bootstrap_corr_diff_null_is_not_rejected():
     rng = np.random.default_rng(14)
     a = rng.multivariate_normal([0, 0], [[1, 0.2], [0.2, 1]], 1500)

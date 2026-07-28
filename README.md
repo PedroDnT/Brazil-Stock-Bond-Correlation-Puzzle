@@ -19,16 +19,17 @@ pip install -r requirements.txt
 # 1. Build the master dataset (fetches everything, ~3 min; prints validation checks)
 python3 src/fetch.py
 
-# 2. Verify the estimators (28 tests; the other 49 need step 3 first)
-python3 -m pytest tests/ -q
+# 2. Regenerate the paper's tables -> outputs/
+python3 scripts/run_analysis.py          # Sections 4-8  (Brazil)
+python3 scripts/run_global_analysis.py   # Section 9     (cross-country panel)
 
-# 3. Regenerate every table in the paper -> outputs/
-python3 scripts/run_analysis.py
+# 3. Verify: 117 tests, 69 of which pin the paper's numbers to the tables above
+python3 -m pytest tests/ -q
 
 # 4. (optional) Generate and execute the notebooks for the figures
 python3 scripts/build_notebooks.py
 cd notebooks
-for nb in 01_data 02_descriptive 03_rolling_corr 04_dcc_garch 05_copula 06_portfolio_metrics 07_stress_test; do
+for nb in 01_data 02_descriptive 03_rolling_corr 04_dcc_garch 05_copula 06_portfolio_metrics 07_stress_test 08_global_macro; do
   jupyter nbconvert --to notebook --execute ${nb}.ipynb --output ${nb}_executed.ipynb --ExecutePreprocessor.timeout=2400
 done
 ```
@@ -41,10 +42,11 @@ done
 | EMBI+ Brazil sovereign spread (bps) | IPEADATA | `JPM366_EMBI366` (ends Jul 2024) |
 | CDI, Selic, IPCA, IGP-M, PTAX | BCB SGS REST API | 12, 432, 433, 189, 1 |
 | NTN-B, LTN, NTN-F, LFT prices and yields | Tesouro Transparente | `PrecoTaxaTesouroDireto.csv` |
-| Global policy rates, CPI, news sentiment | FRED + World Bank + NewsAPI | notebook 08 only |
+| Equity index, 4 advanced economies | FRED (OECD-harmonised) | `SPASTT01<CC>M661N` |
+| 10y government bond yield, 4 advanced economies | FRED (OECD-harmonised) | `IRLTLT01<CC>M156N` |
 
-Notebook 08 needs `FRED_API_KEY` and `NEWS_API_KEY` in `.env`. Without them it prints a
-skip notice and the rest of the notebook still runs.
+**No API key is required.** The cross-country panel uses FRED's public CSV endpoint, so
+the whole study runs from a clean checkout.
 
 ### Bond construction
 
@@ -60,6 +62,14 @@ Defining it as compounded CDI would make "the LFT never loses money" true by
 construction; with observed prices the claim is testable, and it holds for 1-year LFTs
 but not for long ones.
 
+### Cross-country panel
+
+For the four advanced economies, bond total returns come from yields via the standard
+constant-maturity construction (carry, duration, convexity). Brazil is the control: it is
+the one country where a unit-price construction is also available, and the two agree at
+**ρ = 0.931**, with the headline correlation differing by 0.013 (+0.460 yield-based vs
++0.473 PU-based). That is what licenses applying the yield-based method to the others.
+
 ## Key results
 
 | Metric | Value |
@@ -68,7 +78,7 @@ but not for long ones.
 | Ibovespa × NTN-B, **monthly** | ρ = +0.405 — the horizon triples the estimate |
 | Lowest regime correlation (Lula Boom) | ρ = +0.037 [−0.036, +0.108] — not negative, not significant |
 | Regimes statistically distinguishable from each other | **none** (all bootstrap p > 0.05) |
-| ρ conditional on worst decile of equity days | +0.279 [+0.198, +0.356] |
+| ρ conditional on worst decile of equity days | +0.280 [+0.199, +0.357] |
 | Empirical lower-tail dependence (5%) | 0.143 vs 0.050 under independence (38 co-crashes vs 13) |
 | COVID crisis ρ, raw → Forbes-Rigobon adjusted | +0.370 → +0.124 |
 | Joesley Day ρ, raw → adjusted | +0.843 → +0.580 (the one real contagion episode) |
@@ -78,11 +88,25 @@ but not for long ones.
 | LFT 1y max drawdown, 21 years | −0.008% |
 | LFT longest-maturity max drawdown | −1.325% (Oct 2020 deságio) |
 | Ibovespa Sharpe over CDI, 2005–2026 | **−0.07** |
+| **Cross-country panel (monthly, 2005–2026)** | |
+| Pre-2020 correlation, US / DE / JP / UK | −0.315 / −0.356 / −0.316 / −0.225 — all significantly negative |
+| Post-2020, same four | −0.102 / +0.183 / −0.093 / +0.123 — all indistinguishable from zero |
+| Brazil, pre → post | +0.443 → +0.520, no significant shift (p = 0.40) |
+| Gap to Brazil narrowed | **4 of 4** advanced economies — but significant in only **1** (Germany) |
+| Minimum 60-month correlation ever | US −0.664, DE −0.594, JP −0.565, UK −0.455, **Brazil +0.073** |
 
 The headline: Brazilian bonds are **diversifiers but not hedges**. The correlation is
 never reliably negative in any regime or at any horizon — that floor, not a crisis-time
 spike, is what distinguishes Brazil. Most apparent crisis correlation spikes do not
 survive the Forbes-Rigobon volatility adjustment.
+
+On the matched panel, the IMF's advanced-economy finding replicates: all four lost a
+significantly negative stock-bond correlation and none has become significantly positive
+— the change is the loss of a hedge, not the arrival of positive co-movement. Every one
+moved toward Brazil, but only Germany's narrowing is statistically significant, so
+**convergence is directionally unanimous and not established**. Brazil's five-year
+correlation never went below zero in two decades; every advanced economy spent time
+below −0.45.
 
 ## Outputs
 
@@ -104,14 +128,17 @@ and regenerate from source.
 
 ```
 src/
-  fetch.py                # Data ingestion (BCB, IPEADATA, Tesouro) + validation
+  fetch.py                # Brazilian data (BCB, IPEADATA, Tesouro) + validation
+  global_data.py          # Matched cross-country panel (FRED, keyless) + validation
   metrics.py              # Estimators: inference, Forbes-Rigobon, copulas, DCC, portfolio
 tests/
-  test_metrics.py             # 28 unit tests for the estimators
-  test_paper_consistency.py   # 49 tests: every number in the paper vs outputs/
+  test_metrics.py             # 31 unit tests for the estimators
+  test_global_data.py         # 17 tests for the bond construction and retry logic
+  test_paper_consistency.py   # 69 tests: every number in the paper vs outputs/
 scripts/
-  run_analysis.py         # Regenerates every table in the paper
-  build_notebooks.py      # Generates notebooks 01-07
+  run_analysis.py         # Sections 4-8 -> outputs/tbl_*.csv
+  run_global_analysis.py  # Section 9    -> outputs/tbl_global_*.csv
+  build_notebooks.py      # Generates notebooks 01-08
 notebooks/
   01_data.ipynb           # Data pipeline & construction validation
   02_descriptive.ipynb    # Regime stats & correlation matrices
@@ -120,11 +147,11 @@ notebooks/
   05_copula.ipynb         # Copula and empirical tail dependence
   06_portfolio_metrics.ipynb  # DR, ENB, PCA, CoVaR
   07_stress_test.ipynb    # Historical scenarios & stressed VaR
-  08_global_macro.ipynb   # Global rates, CPI, sentiment (hand-maintained; needs FRED key)
+  08_global_macro.ipynb   # Matched cross-country panel; the convergence test
 docs/                     # Research series (see above)
 config/plot_style.py      # Shared matplotlib style
 data/                     # Cached raw & processed data (gitignored)
 outputs/                  # Figures (.png) and tables (.csv) (gitignored)
 ```
 
-Notebook 08 is maintained by hand and is not emitted by `build_notebooks.py`.
+All eight notebooks are generated by `build_notebooks.py` and run without an API key.

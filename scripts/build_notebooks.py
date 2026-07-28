@@ -2485,5 +2485,281 @@ md("""## ✅ Notebook 07 complete — Study fully quantified
 ) # end nb07
 save(nb07, "07_stress_test.ipynb")
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOTEBOOK 08 — Matched Cross-Country Panel: Testing Convergence
+# ═══════════════════════════════════════════════════════════════════════════════
+nb08 = nb(
+
+md("""# 08 · Matched Cross-Country Panel — Testing Convergence
+**Brazilian Stock-Bond Correlation Study**
+
+Notebooks 01–07 establish what Brazil's stock-bond correlation looks like. This one
+answers the comparative question the paper's thesis rests on: **are advanced economies
+converging toward Brazil's regime?**
+
+That cannot be settled from Brazilian data. It needs the same asset definitions and the
+same return construction in every country — otherwise any cross-country difference could
+be an artefact of how the series were built.
+
+1. Build a matched monthly panel: US, Germany, Japan, UK, Brazil
+2. Validate the bond construction against Brazil's independent PU-based series
+3. Stock-bond correlations by country and period, with confidence intervals
+4. The convergence test (difference-in-differences, block bootstrap)
+5. The floor, stated cross-sectionally
+
+> **No API key required.** Earlier versions of this notebook needed `FRED_API_KEY`.
+> It now uses FRED's public CSV endpoint, so it runs from a clean checkout.
+"""),
+
+code("""
+import sys, warnings
+warnings.filterwarnings("ignore")
+sys.path.insert(0, "../src")
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+from fetch import load_master
+from global_data import (build_global_panel, validate_panel,
+                         validate_against_pu_construction,
+                         ALL_COUNTRIES, IMF_BREAK)
+import metrics as M
+
+plt.rcParams.update({
+    "figure.dpi": 150, "figure.facecolor": "white",
+    "axes.spines.top": False, "axes.spines.right": False,
+    "axes.grid": True, "grid.alpha": 0.3, "font.size": 11,
+})
+
+BENCH = "BR"
+DM    = ["US", "DE", "JP", "GB"]
+NAME  = {cc: spec["name"] for cc, spec in ALL_COUNTRIES.items()}
+COLOR = {"US":"#1f77b4", "DE":"#ff7f0e", "JP":"#2ca02c",
+         "GB":"#9467bd", "BR":"#d62728"}
+
+master = load_master()
+panel  = build_global_panel(master=master)
+print(f"Panel: {panel.shape[0]} months, "
+      f"{panel.index.min().date()} to {panel.index.max().date()}")
+"""),
+
+md("""## 1. Validate the panel
+
+Equities are the OECD total share price index (`SPASTT01<CC>M661N`); bonds are the OECD
+long-term 10-year government bond yield (`IRLTLT01<CC>M156N`), converted to a
+constant-maturity total return. Both are OECD-harmonised, so the definition is identical
+across countries — that is why they are preferred to national indices like the DAX.
+
+Brazil has no OECD long-term yield series, so it enters from the domestic pipeline:
+Ibovespa plus the 10-year NTN-F yield. Same instrument type, different source.
+"""),
+
+code("""
+fails = validate_panel(panel)
+assert not fails, f"panel validation failed: {fails}"
+"""),
+
+md("""## 2. Does the construction drive the result?
+
+Bond returns outside Brazil are built from yields, because no unit-price data is
+available. Brazil is the one country where **both** methods can be applied, so it is the
+control: if the yield-based construction reproduces the PU-based series there, applying
+it to the other four is justified. If it does not, the whole panel is suspect.
+"""),
+
+code("""
+xc = validate_against_pu_construction(master=master)
+
+br_y  = master["ntnf_yield"].resample("ME").last().dropna() * 100
+from global_data import constant_maturity_bond_return
+yb = constant_maturity_bond_return(br_y)
+pu = master["ntnf"].resample("ME").sum(); pu = np.exp(pu[pu != 0]) - 1
+
+fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
+
+ax = axes[0]
+both = pd.concat([yb.rename("yield"), pu.rename("pu")], axis=1).dropna()
+ax.plot(both.index, (1+both["yield"]).cumprod(), lw=1.8, color="#1f77b4",
+        label="yield-based (used for all 5 countries)")
+ax.plot(both.index, (1+both["pu"]).cumprod(), lw=1.4, ls="--", color="#d62728",
+        label="PU-based (Brazil only)")
+ax.set_yscale("log"); ax.set_ylabel("Growth of 1 (log scale)")
+ax.set_title("Brazil NTN-F 10y: two independent constructions", fontsize=11)
+ax.legend(fontsize=9); ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+
+ax = axes[1]
+ax.scatter(both["pu"]*100, both["yield"]*100, s=14, alpha=0.6, color="#2ca02c")
+lim = [both.min().min()*100, both.max().max()*100]
+ax.plot(lim, lim, "k--", lw=1, alpha=0.6)
+ax.set_xlabel("PU-based monthly return (%)"); ax.set_ylabel("Yield-based monthly return (%)")
+ax.set_title(f"rho = {xc['rho_constructions']:.3f}", fontsize=11)
+
+plt.tight_layout()
+plt.savefig("../outputs/fig_global_construction_check.png", dpi=150, bbox_inches="tight")
+plt.show()
+
+print(f"Headline correlation, yield-based : {xc['rho_yield_based']:+.3f}")
+print(f"Headline correlation, PU-based    : {xc['rho_pu_based']:+.3f}")
+print(f"Difference                        : {abs(xc['rho_yield_based']-xc['rho_pu_based']):.3f}")
+print("\\nA small difference here is what licenses the yield-based method elsewhere.")
+"""),
+
+md("""## 3. Stock-bond correlation by country and period
+
+Split at the IMF's turning point, 31 December 2019. Each correlation carries a Fisher-z
+interval, and the pre/post shift is tested with a block bootstrap — four point estimates
+moving in the same direction is not by itself evidence that any of them moved.
+"""),
+
+code("""
+pre  = panel[panel.index <= IMF_BREAK]
+post = panel[panel.index >  IMF_BREAK]
+print(f"pre-break  {pre.index.min().date()} to {pre.index.max().date()}  ({len(pre)} months)")
+print(f"post-break {post.index.min().date()} to {post.index.max().date()}  ({len(post)} months)\\n")
+
+rows = []
+for cc in DM + [BENCH]:
+    p0 = M.corr_with_ci(pre[f"{cc}_eq"],  pre[f"{cc}_bd"])
+    p1 = M.corr_with_ci(post[f"{cc}_eq"], post[f"{cc}_bd"])
+    t  = M.bootstrap_corr_diff(post[f"{cc}_eq"], post[f"{cc}_bd"],
+                               pre[f"{cc}_eq"],  pre[f"{cc}_bd"],
+                               n_boot=2000, block=6, seed=2)
+    rows.append({"Country": NAME[cc],
+                 "rho pre": round(p0["rho"], 3),
+                 "CI pre":  f"[{p0['lo']:+.3f},{p0['hi']:+.3f}]",
+                 "rho post": round(p1["rho"], 3),
+                 "CI post": f"[{p1['lo']:+.3f},{p1['hi']:+.3f}]",
+                 "shift": round(p1["rho"]-p0["rho"], 3),
+                 "p": round(t["p"], 3),
+                 "shifted 5%": "yes" if t["p"] < 0.05 else "no"})
+corr_tbl = pd.DataFrame(rows).set_index("Country")
+print(corr_tbl.to_string())
+corr_tbl.to_csv("../outputs/nb_tbl_global_correlations.csv")
+
+fig, ax = plt.subplots(figsize=(11, 5))
+x = np.arange(len(DM)+1); w = 0.36
+ccs = DM + [BENCH]
+pre_v  = [M.corr_with_ci(pre[f"{c}_eq"],  pre[f"{c}_bd"])  for c in ccs]
+post_v = [M.corr_with_ci(post[f"{c}_eq"], post[f"{c}_bd"]) for c in ccs]
+ax.bar(x-w/2, [v["rho"] for v in pre_v], w, label="pre-2020", color="#1f77b4",
+       yerr=[[v["rho"]-v["lo"] for v in pre_v], [v["hi"]-v["rho"] for v in pre_v]],
+       capsize=3, error_kw={"lw":1})
+ax.bar(x+w/2, [v["rho"] for v in post_v], w, label="post-2020", color="#d62728",
+       yerr=[[v["rho"]-v["lo"] for v in post_v], [v["hi"]-v["rho"] for v in post_v]],
+       capsize=3, error_kw={"lw":1})
+ax.axhline(0, color="black", lw=1)
+ax.set_xticks(x); ax.set_xticklabels([NAME[c] for c in ccs], fontsize=9)
+ax.set_ylabel("Monthly stock-bond correlation")
+ax.set_title("All four advanced economies lost a significantly negative correlation.\\n"
+             "None became significantly positive. Brazil never moved.", fontsize=11)
+ax.legend(fontsize=9)
+plt.tight_layout()
+plt.savefig("../outputs/fig_global_correlations.png", dpi=150, bbox_inches="tight")
+plt.show()
+"""),
+
+md("""## 4. The convergence test
+
+Convergence is a claim about a **gap closing**, and both correlations are estimated with
+error, so comparing point estimates by eye is not a test. Difference-in-differences:
+
+$$\\\\text{DiD}(c) = [\\\\rho_{post}(c) - \\\\rho_{pre}(c)] - [\\\\rho_{post}(BR) - \\\\rho_{pre}(BR)]$$
+
+A positive, significant DiD means country *c* moved toward Brazil by more than Brazil
+itself moved.
+"""),
+
+code("""
+rows = []
+for cc in DM:
+    r0 = M.corr_with_ci(pre[f"{cc}_eq"],  pre[f"{cc}_bd"])["rho"]
+    r1 = M.corr_with_ci(post[f"{cc}_eq"], post[f"{cc}_bd"])["rho"]
+    b0 = M.corr_with_ci(pre[f"{BENCH}_eq"],  pre[f"{BENCH}_bd"])["rho"]
+    b1 = M.corr_with_ci(post[f"{BENCH}_eq"], post[f"{BENCH}_bd"])["rho"]
+    d = M.bootstrap_did((pre[f"{cc}_eq"], pre[f"{cc}_bd"]),
+                        (post[f"{cc}_eq"], post[f"{cc}_bd"]),
+                        (pre[f"{BENCH}_eq"], pre[f"{BENCH}_bd"]),
+                        (post[f"{BENCH}_eq"], post[f"{BENCH}_bd"]),
+                        n_boot=2000, block=6, seed=3)
+    rows.append({"Country": NAME[cc],
+                 "gap pre": round(abs(b0-r0), 3), "gap post": round(abs(b1-r1), 3),
+                 "narrowed": "yes" if abs(b1-r1) < abs(b0-r0) else "no",
+                 "DiD": round(d["did"], 3), "boot SE": round(d["boot_se"], 3),
+                 "p": round(d["p"], 3),
+                 "converged 5%": "yes" if (d["p"] < 0.05 and abs(b1-r1) < abs(b0-r0)) else "no"})
+conv = pd.DataFrame(rows).set_index("Country")
+print(conv.to_string())
+conv.to_csv("../outputs/nb_tbl_global_convergence.csv")
+
+n_nar = (conv["narrowed"] == "yes").sum()
+n_sig = (conv["converged 5%"] == "yes").sum()
+print(f"\\nGap to Brazil narrowed in {n_nar}/4 advanced economies.")
+print(f"Narrowing significant at 5% in {n_sig}/4.")
+print("\\nDirection is unanimous; significance is not. And four highly correlated")
+print("bond markets moving together is closer to one or two independent")
+print("observations than to four -- do not read 4/4 as four pieces of evidence.")
+"""),
+
+md("""## 5. The floor, stated cross-sectionally
+
+The single most robust cross-country statement in this study is not about a level but
+about a **floor**: how negative did each market's stock-bond correlation ever get?
+"""),
+
+code("""
+W = 60
+roll = pd.DataFrame({NAME[cc]: panel[f"{cc}_eq"].rolling(W).corr(panel[f"{cc}_bd"])
+                     for cc in DM + [BENCH]}).dropna(how="all")
+
+fig, ax = plt.subplots(figsize=(14, 5.5))
+for cc in DM + [BENCH]:
+    lw = 2.6 if cc == BENCH else 1.4
+    ax.plot(roll.index, roll[NAME[cc]], lw=lw, color=COLOR[cc], label=NAME[cc],
+            alpha=1.0 if cc == BENCH else 0.85)
+ax.axhline(0, color="black", lw=1.2, ls="--")
+ax.axvline(pd.Timestamp(IMF_BREAK), color="navy", lw=1.5, ls=":", alpha=0.8)
+ax.text(pd.Timestamp(IMF_BREAK), ax.get_ylim()[1]*0.95, " IMF break", fontsize=8,
+        color="navy", va="top")
+ax.set_ylabel(f"{W}-month rolling correlation")
+ax.set_title("Brazil's stock-bond correlation never goes negative.\\n"
+             "Every advanced economy spent years below zero.", fontsize=12)
+ax.legend(fontsize=9, ncol=5, loc="lower right")
+ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+plt.tight_layout()
+plt.savefig("../outputs/fig_global_rolling_correlation.png", dpi=150, bbox_inches="tight")
+plt.show()
+
+floor = roll.min().round(3).rename("minimum 60m correlation").to_frame()
+floor["ever below zero"] = np.where(floor["minimum 60m correlation"] < 0, "yes", "no")
+print(floor.to_string())
+roll.round(4).to_csv("../outputs/nb_tbl_global_rolling_correlation.csv")
+"""),
+
+md("""## ✅ Notebook 08 complete
+
+**What the panel establishes**
+
+| Question | Answer |
+|----------|--------|
+| Does the IMF's advanced-economy finding replicate? | Yes — all four had significantly negative pre-2020 correlations, none does now |
+| Did they become significantly *positive*? | **No** — all four post-2020 intervals straddle zero. The change is the loss of a hedge, not the acquisition of positive co-movement |
+| Did Brazil shift? | No (p ≈ 0.40). It is significantly positive in both sub-periods |
+| Did the gap to Brazil narrow? | In 4 of 4 — but significantly in only 1 (Germany) |
+| Is convergence established? | **Directionally unanimous, statistically not.** 78 post-break months, and four non-independent markets |
+| What is robust? | The **floor**: Brazil's 60-month correlation never went below zero; every advanced economy spent time below −0.45 |
+
+**Outputs:** `fig_global_construction_check.png`, `fig_global_correlations.png`,
+`fig_global_rolling_correlation.png`, and the `nb_tbl_global_*.csv` tables.
+
+The paper's Section 9 reports these results; `scripts/run_global_analysis.py` regenerates
+the canonical `outputs/tbl_global_*.csv` versions headlessly.
+"""),
+
+) # end nb08
+save(nb08, "08_global_macro.ipynb")
+
 print("\nAll notebooks written successfully.")
 print("To run: cd notebooks && jupyter notebook")
