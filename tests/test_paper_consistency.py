@@ -1,6 +1,6 @@
 """
 Guards every number quoted in docs/04_final_paper.md and README.md against the
-tables that scripts/run_analysis.py actually produces.
+tables that scripts/run_analysis.py and scripts/run_global_analysis.py produce.
 
 The failure mode this exists to prevent is a paper that drifts away from its own
 code: a table is regenerated, the prose is not updated, and the two disagree
@@ -360,6 +360,112 @@ def test_sign_regimes():
     assert t.loc["Brazil", "pre-2020 sign"] == "positive"
     assert t.loc["Brazil", "post-2020 sign"] == "positive"
     assert t.loc["Brazil", "ever significantly negative"] == "no"
+
+
+# ── The documents themselves ─────────────────────────────────────────────────
+# Everything above checks the generated tables against values transcribed from the
+# prose. That leaves a gap: the prose can still drift from the tables, and nothing
+# notices. These tests close it by rendering the expected string from the table and
+# asserting it appears in the document -- which is how four stale figures survived
+# in README.md after the sample was pinned.
+PAPER = (BASE / "docs" / "04_final_paper.md")
+README = (BASE / "README.md")
+
+
+def _doc(path):
+    return path.read_text(encoding="utf-8")
+
+
+@GLOBAL
+def test_readme_construction_check_matches_the_table():
+    v = load("tbl_global_construction_check.csv", index_col=0)["value"]
+    txt = _doc(README)
+    assert f"+{v['Ibov x bond, yield-based']:.3f} yield-based" in txt
+    assert f"+{v['Ibov x bond, PU-based']:.3f} PU-based" in txt
+    assert f"differing by {v['absolute difference']:.3f}" in txt
+
+
+@GLOBAL
+def test_readme_brazil_panel_shift_matches_the_table():
+    t = load("tbl_global_correlations.csv", index_col=0)
+    txt = _doc(README)
+    pre, post = t.loc["Brazil", "rho pre-2020"], t.loc["Brazil", "rho post-2020"]
+    assert f"+{pre:.3f} → +{post:.3f}" in txt
+
+
+@GLOBAL
+def test_readme_rolling_floor_matches_the_table():
+    t = load("tbl_global_rolling_correlation.csv", index_col=0)
+    txt = _doc(README)
+    for country, label in [("United States", "US"), ("Germany", "DE"),
+                           ("Japan", "JP"), ("United Kingdom", "UK")]:
+        assert f"{label} {t[country].min():.3f}".replace("-", "−") in txt, \
+            f"README floor for {label} disagrees with the table"
+    assert f"Brazil +{t['Brazil'].min():.3f}" in txt
+
+
+@GLOBAL
+def test_readme_pre_and_post_2020_rows_match_the_table():
+    t = load("tbl_global_correlations.csv", index_col=0)
+    txt = _doc(README)
+    order = ["United States", "Germany", "Japan", "United Kingdom"]
+    pre = " / ".join(f"{t.loc[c, 'rho pre-2020']:.3f}" for c in order).replace("-", "−")
+    post = " / ".join(f"{t.loc[c, 'rho post-2020']:+.3f}" for c in order).replace("-", "−").replace("+", "+")
+    assert pre in txt, "README pre-2020 row disagrees with the table"
+    assert post in txt, "README post-2020 row disagrees with the table"
+
+
+def test_readme_conditional_tail_matches_the_table():
+    t = load("tbl_conditional_correlations.csv", index_col=0)
+    assert f"+{t.loc['NTN-B 5y', 'rho|Q10']:.3f}" in _doc(README)
+
+
+def test_paper_full_sample_correlations_appear_verbatim():
+    t = load("tbl_full_sample_correlations.csv", index_col=0)
+    txt = _doc(PAPER)
+    for pair in t.index:
+        assert f"+{t.loc[pair, 'rho']:.3f}" in txt, f"{pair} rho missing from the paper"
+
+
+def test_paper_frequency_headline_appears_verbatim():
+    """The abstract's daily -> monthly claim must match the table."""
+    t = load("tbl_frequency_robustness.csv")
+    d = t[(t["Frequency"] == "daily") & (t["Bond"] == "NTN-B 5y")]["rho"].iloc[0]
+    m = t[(t["Frequency"] == "monthly") & (t["Bond"] == "NTN-B 5y")]["rho"].iloc[0]
+    txt = _doc(PAPER)
+    assert f"+{d:.3f} daily" in txt
+    assert f"+{m:.3f} monthly" in txt
+
+
+def test_paper_forbes_rigobon_headline_appears_verbatim():
+    t = load("tbl_forbes_rigobon.csv", index_col=[0, 1])
+    txt = _doc(PAPER)
+    for crisis in ("COVID", "Joesley"):
+        row = t.loc[(crisis, "NTN-B 5y")]
+        assert f"+{row['rho crisis (raw)']:.3f}" in txt, f"{crisis} raw rho missing"
+        assert f"+{row['rho adjusted']:.3f}" in txt, f"{crisis} adjusted rho missing"
+
+
+@GLOBAL
+def test_paper_reports_the_actual_panel_length():
+    panel = pd.read_csv(BASE / "data" / "processed" / "global_panel.csv",
+                        index_col=0, parse_dates=True) if (
+        BASE / "data" / "processed" / "global_panel.csv").exists() else None
+    if panel is None:
+        pytest.skip("panel not built")
+    n_pre = int((panel.index <= "2019-12-31").sum())
+    n_post = int((panel.index > "2019-12-31").sum())
+    txt = _doc(PAPER)
+    assert f"{len(panel)} months" in txt
+    assert f"{n_pre} pre-break and {n_post} post-break months" in txt
+
+
+def test_no_document_still_advertises_an_api_key_requirement():
+    """Section 9 is reproducible without FRED_API_KEY; the docs must not say otherwise."""
+    for path in (README, PAPER, BASE / "docs" / "03_implementation_guide.md"):
+        txt = _doc(path)
+        assert "requires a free `FRED_API_KEY`" not in txt
+        assert "needs `FRED_API_KEY`" not in txt
 
 
 def test_rolling_portfolio_metrics():

@@ -23,7 +23,7 @@ python3 src/fetch.py
 python3 scripts/run_analysis.py          # Sections 4-8  (Brazil)
 python3 scripts/run_global_analysis.py   # Section 9     (cross-country panel)
 
-# 3. Verify: 117 tests, 69 of which pin the paper's numbers to the tables above
+# 3. Verify: 127 tests, 79 of which pin the paper's and README's numbers to the tables
 python3 -m pytest tests/ -q
 
 # 4. (optional) Generate and execute the notebooks for the figures
@@ -67,8 +67,8 @@ but not for long ones.
 For the four advanced economies, bond total returns come from yields via the standard
 constant-maturity construction (carry, duration, convexity). Brazil is the control: it is
 the one country where a unit-price construction is also available, and the two agree at
-**ρ = 0.931**, with the headline correlation differing by 0.013 (+0.460 yield-based vs
-+0.473 PU-based). That is what licenses applying the yield-based method to the others.
+**ρ = 0.931**, with the headline correlation differing by 0.014 (+0.461 yield-based vs
++0.475 PU-based). That is what licenses applying the yield-based method to the others.
 
 ## Key results
 
@@ -79,7 +79,7 @@ the one country where a unit-price construction is also available, and the two a
 | Lowest regime correlation (Lula Boom) | ρ = +0.037 [−0.036, +0.108] — not negative, not significant |
 | Regimes statistically distinguishable from each other | **none** (all bootstrap p > 0.05) |
 | ρ conditional on worst decile of equity days | +0.280 [+0.199, +0.357] |
-| Empirical lower-tail dependence (5%) | 0.143 vs 0.050 under independence (38 co-crashes vs 13) |
+| Empirical lower-tail dependence (5%) | 0.143 vs 0.050 under independence (38 co-crashes vs 13.3) |
 | COVID crisis ρ, raw → Forbes-Rigobon adjusted | +0.370 → +0.124 |
 | Joesley Day ρ, raw → adjusted | +0.843 → +0.580 (the one real contagion episode) |
 | NTN-B excess return over CDI, GFC | **+5.8pp** — bonds cushioned the drawdown |
@@ -91,7 +91,7 @@ the one country where a unit-price construction is also available, and the two a
 | **Cross-country panel (monthly, 2005–2026)** | |
 | Pre-2020 correlation, US / DE / JP / UK | −0.315 / −0.356 / −0.316 / −0.225 — all significantly negative |
 | Post-2020, same four | −0.102 / +0.183 / −0.093 / +0.123 — all indistinguishable from zero |
-| Brazil, pre → post | +0.443 → +0.520, no significant shift (p = 0.40) |
+| Brazil, pre → post | +0.443 → +0.522, no significant shift (p = 0.40) |
 | Gap to Brazil narrowed | **4 of 4** advanced economies — but significant in only **1** (Germany) |
 | Minimum 60-month correlation ever | US −0.664, DE −0.594, JP −0.565, UK −0.455, **Brazil +0.073** |
 
@@ -111,7 +111,7 @@ below −0.45.
 ## Outputs
 
 `scripts/run_analysis.py` writes the paper's tables as `outputs/tbl_*.csv`. The
-notebooks write their own figure-side tables as `outputs/nb_tbl_*.csv` plus 24 PNG
+notebooks write their own figure-side tables as `outputs/nb_tbl_*.csv` plus 27 PNG
 figures, so each file has exactly one writer. `outputs/` and `data/` are gitignored
 and regenerate from source.
 
@@ -134,7 +134,7 @@ src/
 tests/
   test_metrics.py             # 31 unit tests for the estimators
   test_global_data.py         # 17 tests for the bond construction and retry logic
-  test_paper_consistency.py   # 69 tests: every number in the paper vs outputs/
+  test_paper_consistency.py   # 79 tests: every number in the paper and README vs outputs/
 scripts/
   run_analysis.py         # Sections 4-8 -> outputs/tbl_*.csv
   run_global_analysis.py  # Section 9    -> outputs/tbl_global_*.csv
