@@ -1,0 +1,479 @@
+<title>A Floor, Not a Spike — Stock-Bond Diversification in Brazil</title>
+
+<style>
+@font-face{font-family:'Bodoni Moda';font-style:normal;font-weight:400 700;font-display:block;src:url(data:font/woff2;base64,__BODONI__) format('woff2');}
+@font-face{font-family:'Archivo';font-style:normal;font-weight:400 700;font-display:block;src:url(data:font/woff2;base64,__ARCHIVO__) format('woff2');}
+@font-face{font-family:'Plex Mono';font-style:normal;font-weight:400;font-display:block;src:url(data:font/woff2;base64,__PLEX400__) format('woff2');}
+@font-face{font-family:'Plex Mono';font-style:normal;font-weight:500;font-display:block;src:url(data:font/woff2;base64,__PLEX500__) format('woff2');}
+
+/* ---------- tokens ----------
+   Teal (--d1) is the page's only data hue: the one-pager carries a single
+   chart, so the second series colour and the sequential ramp are gone. */
+:root{
+  --ground:#e2e3df; --panel:#f2f2ef; --panel-2:#e9eae6;
+  --ink:#14181a; --ink-2:#5a625f; --ink-3:#7d8580;
+  --rule:#c7cac4; --rule-soft:#d6d8d2;
+  --d1:#00909f;
+  --tip-bg:#14181a; --tip-ink:#f2f2ef;
+  --display:'Bodoni Moda',ui-serif,Georgia,serif;
+  --body:'Archivo',ui-sans-serif,system-ui,'Helvetica Neue',sans-serif;
+  --mono:'Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  --s1:.35rem; --s2:.7rem; --s3:1.1rem; --s4:1.8rem; --s5:2.8rem;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#101312; --panel:#1a1e1d; --panel-2:#222725;
+    --ink:#e7e9e5; --ink-2:#9aa29e; --ink-3:#7c8480;
+    --rule:#2c3230; --rule-soft:#242928;
+    --d1:#2ba6ae;
+    --tip-bg:#f2f2ef; --tip-ink:#14181a;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#101312; --panel:#1a1e1d; --panel-2:#222725;
+  --ink:#e7e9e5; --ink-2:#9aa29e; --ink-3:#7c8480;
+  --rule:#2c3230; --rule-soft:#242928;
+  --d1:#2ba6ae;
+  --tip-bg:#f2f2ef; --tip-ink:#14181a;
+}
+:root[data-theme="light"]{
+  --ground:#e2e3df; --panel:#f2f2ef; --panel-2:#e9eae6;
+  --ink:#14181a; --ink-2:#5a625f; --ink-3:#7d8580;
+  --rule:#c7cac4; --rule-soft:#d6d8d2;
+  --d1:#00909f;
+  --tip-bg:#14181a; --tip-ink:#f2f2ef;
+}
+
+/* ---------- base ---------- */
+.page{background:var(--ground);color:var(--ink);font-family:var(--body);
+  font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+.page *{box-sizing:border-box;}
+/* One screen: a single column of blocks, spaced by gap so no margin can
+   collapse or double against a neighbour. */
+.onepager{max-width:1180px;margin:0 auto;padding:var(--s4) var(--s3) var(--s4);
+  display:flex;flex-direction:column;gap:var(--s3);}
+/* Two paired rows, so nothing has to be cut to keep the page short:
+   hero + scorecard rail, then conclusion + qualifications. */
+.split{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);
+  gap:var(--s3);align-items:stretch;}
+@media (max-width:900px){.split{grid-template-columns:minmax(0,1fr);}}
+/* The hero row collapses earlier than the other: the chart needs ~800px to
+   keep its labels legible, so below ~1120px it takes the full width instead
+   of being squeezed into a column. */
+.split-hero{display:grid;grid-template-columns:minmax(0,2.7fr) minmax(0,1fr);
+  gap:var(--s3);align-items:stretch;}
+@media (max-width:1120px){.split-hero{grid-template-columns:minmax(0,1fr);}}
+
+p{margin:0 0 var(--s3);text-wrap:pretty;}
+h1,h2,h3{text-wrap:balance;margin:0;}
+a{color:inherit;text-decoration:none;border-bottom:1px solid var(--d1);}
+a:hover{border-bottom-width:2px;}
+a:focus-visible,button:focus-visible{outline:2px solid var(--d1);outline-offset:3px;border-radius:2px;}
+strong{font-weight:600;}
+em{font-style:italic;}
+code{font-family:var(--mono);font-size:.92em;}
+
+.eyebrow{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 var(--s2);}
+
+/* ---------- masthead ---------- */
+.masthead .rule-top{height:3px;background:var(--ink);margin-bottom:var(--s2);}
+.mast-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:var(--s2) var(--s4);align-items:end;}
+.masthead h1{font-family:var(--display);font-variation-settings:'opsz' 72;
+  font-weight:600;font-size:clamp(2rem,5vw,3.3rem);line-height:1;
+  letter-spacing:-.015em;margin:0;}
+.masthead h1 .thin{font-weight:400;font-style:italic;}
+.byline{display:flex;flex-direction:column;align-items:flex-end;text-align:right;
+  gap:.15em;font-family:var(--mono);font-size:11.5px;line-height:1.45;color:var(--ink-3);}
+.byline b{color:var(--ink-2);font-weight:500;}
+.deck{font-size:1.06rem;line-height:1.5;color:var(--ink-2);max-width:64ch;
+  margin:var(--s3) 0 0;}
+@media (max-width:760px){
+  .mast-grid{grid-template-columns:minmax(0,1fr);}
+  .byline{align-items:flex-start;text-align:left;margin-top:var(--s2);}
+}
+
+/* ---------- scorecards ---------- */
+.keyfigs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);margin:0;
+  align-content:stretch;}
+/* Beside the hero the scorecards stack into a rail; once the hero row
+   collapses they go back to running across. */
+.keyfigs.rail{grid-template-columns:minmax(0,1fr);}
+@media (max-width:1120px){.keyfigs.rail{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media (max-width:860px){.keyfigs,.keyfigs.rail{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (max-width:520px){.keyfigs,.keyfigs.rail{grid-template-columns:minmax(0,1fr);}}
+.kf{background:var(--panel);padding:var(--s3);display:flex;flex-direction:column;
+  gap:var(--s1);justify-content:center;}
+.kf .kf-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink-3);}
+/* Uppercasing ρ yields Ρ, which is indistinguishable from a Latin P — so the
+   symbol opts out of the label's text-transform. */
+.kf .kf-l .sym{text-transform:none;}
+.kf .kf-v{font-family:var(--body);font-weight:600;font-size:2rem;line-height:1;letter-spacing:-.02em;}
+.kf .kf-n{font-size:.8rem;line-height:1.4;color:var(--ink-2);}
+
+/* ---------- hero plate ---------- */
+/* Column flex so that when the plate stretches to match the scorecard rail the
+   slack goes to the chart body — which centres the chart — instead of pooling
+   as dead space under the caption. */
+.plate{background:var(--panel);border:1px solid var(--rule);margin:0;position:relative;
+  display:flex;flex-direction:column;}
+.plate-head{padding:var(--s3) var(--s3) var(--s2);display:flex;flex-wrap:wrap;
+  align-items:baseline;gap:var(--s1) var(--s2);border-bottom:1px solid var(--rule-soft);}
+.plate-num{font-family:var(--display);font-variation-settings:'opsz' 20;font-weight:600;
+  font-size:.95rem;letter-spacing:.02em;color:var(--d1);}
+.plate-title{font-weight:600;font-size:1rem;flex:1 1 16rem;}
+.plate-src{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  color:var(--ink-3);text-transform:uppercase;}
+.plate-body{padding:var(--s2) var(--s3);overflow-x:auto;
+  flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;}
+.scrollhint{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin:var(--s2) 0 0;position:sticky;left:0;}
+.plate-foot{padding:0 var(--s3) var(--s3);display:flex;flex-wrap:wrap;
+  gap:var(--s2) var(--s3);align-items:flex-start;justify-content:space-between;}
+.caption{font-size:.85rem;line-height:1.5;color:var(--ink-2);max-width:66ch;margin:0;}
+.caption b{color:var(--ink);font-weight:600;}
+
+.tbl-btn{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  background:none;border:1px solid var(--rule);color:var(--ink-2);padding:.4em .8em;
+  cursor:pointer;flex:0 0 auto;}
+.tbl-btn:hover{border-color:var(--d1);color:var(--ink);}
+.tbl-wrap{display:none;padding:0 var(--s3) var(--s3);overflow-x:auto;}
+.tbl-wrap.open{display:block;}
+
+/* ---------- svg ---------- */
+.chart{display:block;width:100%;height:auto;}
+/* Native width is the cap: upscaling the hero would cost ~130px of height for
+   no added detail. The min-width floor keeps labels legible on a phone, where
+   the plate scrolls sideways instead (see markScroll). */
+.plate-body > div > .chart{min-width:700px;max-width:800px;margin:0 auto;}
+.chart text{font-family:var(--mono);fill:var(--ink-2);}
+.chart .ax{font-size:11px;fill:var(--ink-3);}
+.chart .cat{font-size:12px;fill:var(--ink);}
+.chart .val{font-size:12px;font-weight:500;fill:var(--ink);
+  paint-order:stroke;stroke:var(--panel);stroke-width:3.5px;stroke-linejoin:round;}
+.chart .grid{stroke:var(--rule-soft);stroke-width:1;}
+.chart .zero{stroke:var(--ink);stroke-width:2;}
+.hit{cursor:crosshair;}
+
+.tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-120%);
+  background:var(--tip-bg);color:var(--tip-ink);font-family:var(--mono);font-size:11.5px;
+  line-height:1.55;padding:.55em .7em;white-space:nowrap;z-index:9;transition:opacity .09s linear;}
+.tip.on{opacity:1;}
+.tip b{font-weight:500;}
+
+/* ---------- table (hero audit trail) ---------- */
+table{border-collapse:collapse;width:100%;font-size:.83rem;font-variant-numeric:tabular-nums;}
+th,td{text-align:right;padding:.42em .6em;border-bottom:1px solid var(--rule-soft);white-space:nowrap;}
+th:first-child,td:first-child{text-align:left;white-space:normal;}
+thead th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--rule);}
+tbody tr:last-child td{border-bottom:none;}
+tbody td{font-family:var(--mono);}
+tbody td:first-child{font-family:var(--body);}
+tr.emph td{font-weight:600;color:var(--ink);background:var(--panel-2);}
+
+/* ---------- conclusion ---------- */
+.conclusion{background:var(--panel);border:1px solid var(--rule);padding:var(--s3) var(--s4);}
+.conclusion h2{font-family:var(--display);font-variation-settings:'opsz' 28;font-weight:600;
+  font-size:1.35rem;line-height:1.15;letter-spacing:-.01em;margin:0 0 var(--s2);}
+.conclusion p{margin:0;font-size:.95rem;line-height:1.6;color:var(--ink-2);max-width:82ch;}
+.conclusion strong{color:var(--ink);}
+
+/* ---------- qualifications ----------
+   Not decoration. The scorecards above quote point estimates; these lines are
+   what keep quoting them honest, so they ship with the numbers. */
+.caveats{background:var(--panel);border:1px solid var(--rule);padding:var(--s3);}
+.caveats h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:500;margin:0 0 var(--s2);}
+.caveats ul{list-style:none;margin:0;padding:0;display:grid;gap:.45em;}
+.caveats li{font-size:.8rem;line-height:1.45;color:var(--ink-3);
+  padding-left:1.1em;position:relative;}
+.caveats li::before{content:"—";position:absolute;left:0;color:var(--d1);}
+.caveats .src{margin:var(--s2) 0 0;font-size:.78rem;line-height:1.5;color:var(--ink-3);}
+
+/* ---------- reveal ---------- */
+/* Scoped to .js-rv so the page is fully visible if the script never runs. */
+.js-rv .rv{opacity:0;transform:translateY(10px);transition:opacity .5s ease,transform .5s ease;}
+.js-rv .rv.in{opacity:1;transform:none;}
+@media (prefers-reduced-motion:reduce){
+  .js-rv .rv{opacity:1;transform:none;transition:none;}
+  .tip{transition:none;}
+}
+@media (max-width:640px){
+  .page{font-size:16px;}
+  .plate-body{padding:var(--s2);}
+  .conclusion{padding:var(--s3);}
+}
+</style>
+
+<div class="page">
+<div class="onepager">
+
+  <header class="masthead">
+    <div class="rule-top"></div>
+    <div class="mast-grid">
+      <div>
+        <p class="eyebrow">Working paper · Brazil · Jan 2005 – Jul 2026 · 5,338 paired trading days</p>
+        <h1>A Floor, <span class="thin">Not a Spike</span></h1>
+      </div>
+      <div class="byline">
+        <span><b>Pedro Todescan</b></span>
+        <span>July 2026</span>
+        <span>Replication &amp; extension of<br>Adrian, Kramer &amp; Malik (IMF, Feb 2026)</span>
+      </div>
+    </div>
+    <p class="deck">Brazilian government bonds are diversifiers, not hedges. Across two decades
+      and six macro regimes the correlation never turns reliably negative — that floor, not a
+      crisis-time spike, is what distinguishes Brazil.</p>
+  </header>
+
+  <div class="split-hero rv">
+  <figure class="plate" id="fig1">
+    <div class="plate-head">
+      <span class="plate-num">Fig. 1</span>
+      <span class="plate-title">The correlation has a floor: Ibovespa × NTN-B 5y by macro regime</span>
+      <span class="plate-src">Paper §4.2 · Table 3</span>
+    </div>
+    <div class="plate-body"><div id="c1"></div></div>
+    <div class="plate-foot">
+      <p class="caption">Daily log returns, Fisher-z 95% intervals.
+        <b>No regime reaches negative territory</b>, and none is distinguishable from the calmest.</p>
+      <button class="tbl-btn" data-tbl="t1">Table</button>
+    </div>
+    <div class="tbl-wrap" id="t1"></div>
+  </figure>
+
+  <div class="keyfigs rail">
+    <div class="kf">
+      <span class="kf-l"><span class="sym">ρ</span> daily · Ibov × NTN-B</span>
+      <span class="kf-v">+0.122</span>
+      <span class="kf-n">95% CI [+0.096, +0.149]</span>
+    </div>
+    <div class="kf">
+      <span class="kf-l"><span class="sym">ρ</span> monthly · same pair</span>
+      <span class="kf-v">+0.405</span>
+      <span class="kf-n">Horizon triples it — this is the figure comparable to the IMF's</span>
+    </div>
+    <div class="kf">
+      <span class="kf-l">Regimes distinguishable</span>
+      <span class="kf-v">0 of 5</span>
+      <span class="kf-n">Block bootstrap vs the calmest; nothing clears 5%</span>
+    </div>
+    <div class="kf">
+      <span class="kf-l">Ibovespa Sharpe vs CDI</span>
+      <span class="kf-v">−0.07</span>
+      <span class="kf-n">The domestic equity premium over cash was negative</span>
+    </div>
+  </div>
+  </div>
+
+  <div class="split rv">
+  <section class="conclusion">
+    <h2>The switch is shock type, not crisis</h2>
+    <p>Duration diversifies global risk-off episodes and amplifies domestic fiscal-political
+      ones. <strong>NTN-B returned +5.8pp over CDI through the GFC and +1.3pp through
+      COVID</strong>; the only two episodes where it lost to cash — Joesley Day and the 2024
+      fiscal scare — were both domestic. In the daily left tail, though, the diversification
+      does fail: <strong>lower-tail dependence is 0.143 against the 0.050 implied by
+      independence</strong>, so stocks and bonds crash together nearly three times as often as
+      chance, and conditional on the worst decile of equity days ρ doubles to +0.279. No
+      allocation within domestic fixed income turns these bonds into a hedge. Against a
+      domestic fiscal shock the hedges are short LFT and international assets — and long LFT
+      is not the risk-free instrument it is usually assumed to be, drawing down 1.33% at its
+      longest maturity against 0.008% at one year.</p>
+  </section>
+
+  <section class="caveats">
+    <h3>Qualifications</h3>
+    <ul>
+      <li>No regime is statistically distinguishable from the calmest — all bootstrap
+        p&nbsp;&gt;&nbsp;0.05. The post-2013 upward drift is suggestive, not established.</li>
+      <li>Most crisis correlation spikes do not survive the Forbes-Rigobon volatility
+        adjustment: COVID falls from +0.370 raw to +0.124, and the GFC shows no elevation at all.</li>
+      <li>Gaussian VaR understates tail risk given the kurtosis in these series and should be
+        read as a lower bound; the Joesley window is 11 trading days, so its estimate is imprecise.</li>
+      <li>Regime boundaries are researcher-defined rather than estimated, and the §9
+        global-macro extension was not reproduced — those claims are open, not established.</li>
+    </ul>
+    <p class="src">Figures transcribed from <code>docs/04_final_paper.md</code>, which
+      <code>scripts/run_analysis.py</code> regenerates from free public data (IPEADATA, BCB SGS,
+      Tesouro Transparente). Full method, all thirteen tables, the DCC and copula estimates and
+      the complete limitations are in the paper.</p>
+  </section>
+  </div>
+
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= data ================= */
+var REGIMES=[
+ {k:"Lula Boom",yr:"2005–2007",n:741,r:0.037,lo:-0.036,hi:0.108,d:null,se:null,p:null},
+ {k:"GFC & Recovery",yr:"2008–2012",n:1234,r:0.053,lo:-0.003,hi:0.109,d:0.017,se:0.068,p:0.817},
+ {k:"Dilma Deterioration",yr:"2013–2016",n:908,r:0.114,lo:0.049,hi:0.177,d:0.077,se:0.057,p:0.181},
+ {k:"Reform Era",yr:"2016–2019",n:821,r:0.199,lo:0.133,hi:0.264,d:0.163,se:0.085,p:0.052},
+ {k:"COVID & Post-COVID",yr:"2020–2022",n:746,r:0.227,lo:0.158,hi:0.294,d:0.190,se:0.117,p:0.085},
+ {k:"Current Cycle",yr:"2023–2026",n:888,r:0.109,lo:0.044,hi:0.174,d:0.073,se:0.057,p:0.207},
+ {k:"Full sample",yr:"2005–2026",n:5338,r:0.122,lo:0.096,hi:0.149,d:null,se:null,p:null,full:true}
+];
+
+/* ================= helpers ================= */
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function sg(v,d){d=d==null?3:d;return (v>0?"+":v<0?"−":"")+Math.abs(v).toFixed(d);}
+function svgOpen(w,h,label){
+  return '<svg class="chart" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="xMidYMid meet" '+
+    'role="img" aria-label="'+esc(label)+'">';
+}
+function tick(v){return Math.abs(v)<1e-9?"0":(v>0?"":"−")+Math.abs(v).toFixed(v%1===0?0:(Math.abs(v)<0.1?2:1));}
+
+/* ================= Fig 1 : forest plot ================= */
+function fig1(){
+  /* H is tuned so the seven rows sit at a ~36px band — enough for the two-line
+     row label, and ~50px shorter than a 42px band, which the one-pager needs. */
+  var W=780,H=326,ML=176,MR=74,MT=30,MB=44;
+  var x0=-0.10,x1=0.34;
+  var pw=W-ML-MR;
+  var X=function(v){return ML+(v-x0)/(x1-x0)*pw;};
+  var rows=REGIMES.length, band=(H-MT-MB)/rows;
+  var s=svgOpen(W,H,"Correlation of Ibovespa with NTN-B 5y by macro regime, with 95 percent confidence intervals. No regime estimate is negative.");
+  s+='<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
+     '<line x1="0" y1="0" x2="0" y2="7" stroke="var(--rule)" stroke-width="1"/></pattern></defs>';
+  /* negative zone */
+  s+='<rect x="'+ML+'" y="'+MT+'" width="'+(X(0)-ML)+'" height="'+(H-MT-MB)+'" fill="url(#hatch)" opacity=".55"/>';
+  s+='<text class="ax" x="'+(ML+4)+'" y="'+(MT-11)+'" text-anchor="start" style="fill:var(--ink-3)">hedge territory · never reached</text>';
+  /* gridlines */
+  var ticks=[-0.10,0,0.10,0.20,0.30];
+  for(var i=0;i<ticks.length;i++){
+    var tx=X(ticks[i]);
+    if(ticks[i]!==0) s+='<line class="grid" x1="'+tx+'" y1="'+MT+'" x2="'+tx+'" y2="'+(H-MB)+'"/>';
+    s+='<text class="ax" x="'+tx+'" y="'+(H-MB+20)+'" text-anchor="middle">'+tick(ticks[i])+'</text>';
+  }
+  s+='<line class="zero" x1="'+X(0)+'" y1="'+(MT-4)+'" x2="'+X(0)+'" y2="'+(H-MB+6)+'"/>';
+  s+='<text class="ax" x="'+X(0)+'" y="'+(H-MB+36)+'" text-anchor="middle" style="fill:var(--ink)">ρ = 0</text>';
+  for(i=0;i<rows;i++){
+    var d=REGIMES[i], cy=MT+band*i+band/2;
+    var col=d.full?"var(--ink)":"var(--d1)";
+    var tipTxt=d.k+" ("+d.yr+")\nρ = "+sg(d.r)+"\n95% CI ["+sg(d.lo)+", "+sg(d.hi)+"]\nn = "+d.n.toLocaleString("en-US")+
+      (d.p!=null?("\nvs Lula Boom: Δ "+sg(d.d)+", p = "+d.p.toFixed(3)):"");
+    if(d.full) s+='<line class="grid" x1="'+ML+'" y1="'+(MT+band*i)+'" x2="'+(W-MR+56)+'" y2="'+(MT+band*i)+'" stroke="var(--rule)"/>';
+    s+='<text class="cat" x="'+(ML-14)+'" y="'+(cy-1)+'" text-anchor="end" style="font-weight:'+(d.full?600:400)+'">'+esc(d.k)+'</text>';
+    s+='<text class="ax" x="'+(ML-14)+'" y="'+(cy+13)+'" text-anchor="end">'+d.yr+' · n '+d.n.toLocaleString("en-US")+'</text>';
+    s+='<line x1="'+X(d.lo)+'" y1="'+cy+'" x2="'+X(d.hi)+'" y2="'+cy+'" stroke="'+col+'" stroke-width="2" stroke-linecap="round" opacity=".45"/>';
+    s+='<line x1="'+X(d.lo)+'" y1="'+(cy-5)+'" x2="'+X(d.lo)+'" y2="'+(cy+5)+'" stroke="'+col+'" stroke-width="2" opacity=".45"/>';
+    s+='<line x1="'+X(d.hi)+'" y1="'+(cy-5)+'" x2="'+X(d.hi)+'" y2="'+(cy+5)+'" stroke="'+col+'" stroke-width="2" opacity=".45"/>';
+    s+='<circle cx="'+X(d.r)+'" cy="'+cy+'" r="5.5" fill="'+col+'" stroke="var(--panel)" stroke-width="2"/>';
+    s+='<text class="val" x="'+(W-MR+56)+'" y="'+(cy+4)+'" text-anchor="end">'+sg(d.r)+'</text>';
+    s+='<rect class="hit" x="'+ML+'" y="'+(MT+band*i)+'" width="'+(W-MR+56-ML)+'" height="'+band+'" fill="transparent" data-tip="'+esc(tipTxt)+'"/>';
+  }
+  s+='</svg>';
+  return s;
+}
+
+/* ================= table ================= */
+function tbl(head,rows){
+  var s='<table><thead><tr>';
+  for(var i=0;i<head.length;i++) s+='<th scope="col">'+head[i]+'</th>';
+  s+='</tr></thead><tbody>';
+  for(var r=0;r<rows.length;r++){
+    var row=rows[r];
+    s+='<tr'+(row.emph?' class="emph"':'')+'>';
+    for(var c=0;c<row.cells.length;c++) s+='<td>'+row.cells[c]+'</td>';
+    s+='</tr>';
+  }
+  return s+'</tbody></table>';
+}
+
+/* ================= mount ================= */
+var root=document.querySelector(".onepager");
+if(root) root.classList.add("js-rv");
+document.getElementById("c1").innerHTML=fig1();
+document.getElementById("t1").innerHTML=tbl(
+  ["Regime","n","ρ","95% CI","Δ vs Lula Boom","Bootstrap SE","p"],
+  REGIMES.map(function(d){return{emph:!!d.full,cells:[
+    esc(d.k)+' <span style="color:var(--ink-3)">'+d.yr+'</span>',
+    d.n.toLocaleString("en-US"),sg(d.r),"["+sg(d.lo)+", "+sg(d.hi)+"]",
+    d.d==null?"—":sg(d.d),d.se==null?"—":d.se.toFixed(3),d.p==null?"—":d.p.toFixed(3)
+  ]};}));
+
+/* ===== tell the reader when the chart is wider than its frame ===== */
+function markScroll(){
+  var bodies=document.querySelectorAll(".plate-body");
+  for(var i=0;i<bodies.length;i++){
+    var pb=bodies[i], hint=pb.querySelector(".scrollhint");
+    var wide=pb.scrollWidth>pb.clientWidth+4;
+    if(wide && !hint){
+      hint=document.createElement("p");
+      hint.className="scrollhint";
+      hint.textContent="Scroll the chart sideways →";
+      pb.appendChild(hint);
+    } else if(!wide && hint){ hint.parentNode.removeChild(hint); }
+  }
+}
+markScroll();
+window.addEventListener("resize",markScroll);
+
+/* ================= table toggle ================= */
+var btns=document.querySelectorAll(".tbl-btn");
+for(var b=0;b<btns.length;b++){
+  (function(btn){
+    var target=document.getElementById(btn.getAttribute("data-tbl"));
+    btn.setAttribute("aria-expanded","false");
+    btn.setAttribute("aria-controls",btn.getAttribute("data-tbl"));
+    btn.addEventListener("click",function(){
+      var open=target.classList.toggle("open");
+      btn.setAttribute("aria-expanded",open?"true":"false");
+      btn.textContent=open?"Hide table":"Table";
+      markScroll();
+    });
+  })(btns[b]);
+}
+
+/* ================= tooltips ================= */
+var plates=document.querySelectorAll(".plate");
+for(var p=0;p<plates.length;p++){
+  (function(plate){
+    var tip=document.createElement("div");
+    tip.className="tip";
+    plate.appendChild(tip);
+    plate.addEventListener("mousemove",function(e){
+      var t=e.target.closest?e.target.closest("[data-tip]"):null;
+      if(!t){tip.classList.remove("on");return;}
+      var pr=plate.getBoundingClientRect();
+      tip.innerHTML=t.getAttribute("data-tip").split("\n").map(function(l,i){
+        return i===0?"<b>"+esc(l)+"</b>":esc(l);
+      }).join("<br>");
+      var x=e.clientX-pr.left,y=e.clientY-pr.top;
+      var tw=tip.offsetWidth||160;
+      x=Math.max(tw/2+6,Math.min(pr.width-tw/2-6,x));
+      tip.style.left=x+"px";
+      tip.style.top=Math.max(28,y-6)+"px";
+      tip.classList.add("on");
+    });
+    plate.addEventListener("mouseleave",function(){tip.classList.remove("on");});
+  })(plates[p]);
+}
+
+/* ================= reveal ================= */
+var rvs=document.querySelectorAll(".rv");
+if(!window.matchMedia||!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){en.target.classList.add("in");io.unobserve(en.target);}
+      });
+    },{rootMargin:"0px 0px -8% 0px",threshold:0.05});
+    for(var v=0;v<rvs.length;v++) io.observe(rvs[v]);
+  } else {
+    for(var v2=0;v2<rvs.length;v2++) rvs[v2].classList.add("in");
+  }
+} else {
+  for(var v3=0;v3<rvs.length;v3++) rvs[v3].classList.add("in");
+}
+})();
+</script>
