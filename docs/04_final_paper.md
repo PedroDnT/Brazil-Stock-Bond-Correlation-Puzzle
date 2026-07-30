@@ -1,7 +1,6 @@
 # Stock-Bond Diversification in Brazil: A Different Beast Entirely
 
 **Pedro Todescan**
-OCTO Inteligência de Dados / FGV EESP
 July 2026
 
 ---
