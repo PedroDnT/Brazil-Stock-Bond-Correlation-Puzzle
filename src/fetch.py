@@ -23,10 +23,41 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import io
+import time
 import numpy as np
 import pandas as pd
 import requests
 from pathlib import Path
+
+
+def get_with_retry(url, tries=5, timeout=180, backoff=3.0, **kwargs):
+    """
+    GET with exponential backoff on transient failures.
+
+    IPEADATA and Tesouro Transparente both return sporadic 5xx under load. Without
+    retries a single blip aborts the whole rebuild after several minutes of work,
+    which is a poor trade for a request that usually succeeds on the next attempt.
+    Client errors (4xx) are not retried — those are real and retrying won't help.
+    """
+    last = None
+    for attempt in range(tries):
+        # try/except/else, not try/except: raising the 4xx inside the `try` would be
+        # caught by the handler below and retried, which is the opposite of intended.
+        try:
+            r = requests.get(url, timeout=timeout, **kwargs)
+        except (requests.Timeout, requests.ConnectionError) as e:
+            last = e
+        else:
+            if r.status_code < 400:
+                return r
+            if r.status_code < 500:
+                r.raise_for_status()            # 4xx: a real error, don't retry
+            last = requests.HTTPError(f"{r.status_code} for {url}", response=r)
+        if attempt < tries - 1:
+            wait = backoff * (2 ** attempt)
+            print(f"    retry {attempt + 1}/{tries - 1} in {wait:.0f}s ({type(last).__name__})")
+            time.sleep(wait)
+    raise last
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent.parent
@@ -36,7 +67,14 @@ RAW_DIR.mkdir(parents=True, exist_ok=True)
 PROC_DIR.mkdir(parents=True, exist_ok=True)
 
 START = "2004-01-01"
-END   = "2026-07-24"
+END   = "2026-07-31"          # how far to *request* from each API
+
+# Hard cutoff for the analysis sample. Without this the dataset grows every day the
+# sources publish, so the paper's numbers drift and "reproducible" is not true --
+# a run next month would silently disagree with every figure in the text.
+# June month-end also aligns the daily Brazilian data with the monthly FRED panel
+# and removes a partial final month from every monthly resampling.
+SAMPLE_END = "2026-06-30"
 
 # ── Event maps (shared across all notebooks) ─────────────────────────────────
 # NOTE: the usable sample starts 2005-01-03 (first Tesouro Transparente PU is
@@ -56,7 +94,7 @@ REGIMES = {
     "Dilma Deterioration": ("2013-01-01", "2016-08-31"),
     "Reform Era":          ("2016-09-01", "2019-12-31"),
     "COVID & Post-COVID":  ("2020-01-01", "2022-12-31"),
-    "Current Cycle":       ("2023-01-01", "2026-07-24"),
+    "Current Cycle":       ("2023-01-01", "2026-06-30"),
 }
 
 RETURN_COLS = ["ibov", "ntnb", "ltn", "ntnf", "lft"]
@@ -74,7 +112,7 @@ def _bcb_chunk(code, start_dt, end_dt):
         f"&dataFinal={end_dt.strftime(fmt)}"
     )
     try:
-        r = requests.get(url, timeout=60)
+        r = get_with_retry(url, timeout=60)
         if r.status_code != 200 or not r.text.strip():
             return pd.Series(dtype=float)
         data = r.json()
@@ -147,8 +185,9 @@ IPEA_SERIES = {
 
 def _ipeadata(sercodigo):
     url = f"http://www.ipeadata.gov.br/api/odata4/ValoresSerie(SERCODIGO='{sercodigo}')"
-    r = requests.get(url, timeout=180)
-    r.raise_for_status()
+    # IPEADATA is the flakiest of the three sources and 503s regularly under load,
+    # so it gets a longer retry budget than the default.
+    r = get_with_retry(url, tries=8, timeout=180, backoff=5.0)
     v = pd.DataFrame(r.json()["value"])
     # VALDATA carries a local UTC offset; take the date component directly to avoid
     # DST-transition errors on historical Brazilian dates.
@@ -201,8 +240,7 @@ def fetch_tesouro(force=False):
         df = pd.read_csv(cache, parse_dates=["base", "venc"])
         return df
     print("Fetching Tesouro Transparente PU history (~14 MB)...")
-    r = requests.get(TESOURO_URL, timeout=600)
-    r.raise_for_status()
+    r = get_with_retry(TESOURO_URL, timeout=600)
     df = pd.read_csv(io.BytesIO(r.content), sep=";", decimal=",", encoding="latin-1")
     df.columns = [c.strip() for c in df.columns]
     df["base"] = pd.to_datetime(df["Data Base"], dayfirst=True)
@@ -343,7 +381,7 @@ def build_master_returns(start=START, force_rebuild=False):
     ], axis=1)
 
     master = ret.join(levels, how="left")
-    master = master[master.index >= start].sort_index()
+    master = master[(master.index >= start) & (master.index <= SAMPLE_END)].sort_index()
     # keep only days on which the equity market and at least one bond traded
     master = master.dropna(subset=["ibov"], how="all")
     master[["embi", "cdi_level", "selic", "ipca", "brl_usd"]] = \
@@ -362,7 +400,8 @@ def build_master_returns(start=START, force_rebuild=False):
     master.to_csv(cache)
 
     print(f"\nMaster dataset: {master.shape}")
-    print(f"Dates : {master.index[0].date()} to {master.index[-1].date()}")
+    print(f"Dates : {master.index[0].date()} to {master.index[-1].date()}"
+          f"  (sample fixed at {SAMPLE_END})")
     print(f"Saved -> {cache}")
     validate_master(master)
     return master

@@ -1,6 +1,6 @@
 """
 Guards every number quoted in docs/04_final_paper.md and README.md against the
-tables that scripts/run_analysis.py actually produces.
+tables that scripts/run_analysis.py and scripts/run_global_analysis.py produce.
 
 The failure mode this exists to prevent is a paper that drifts away from its own
 code: a table is regenerated, the prose is not updated, and the two disagree
@@ -52,11 +52,11 @@ def test_lft_correlation_is_not_significant():
 # ── Section 4.3: the horizon result ──────────────────────────────────────────
 @pytest.mark.parametrize("freq,bond,claimed", [
     ("daily",     "NTN-B 5y",  0.122),
-    ("weekly",    "NTN-B 5y",  0.335),
+    ("weekly",    "NTN-B 5y",  0.336),
     ("monthly",   "NTN-B 5y",  0.405),
-    ("quarterly", "NTN-B 5y",  0.421),
-    ("monthly",   "NTN-F 10y", 0.473),
-    ("monthly",   "LTN 2y",    0.318),
+    ("quarterly", "NTN-B 5y",  0.423),
+    ("monthly",   "NTN-F 10y", 0.474),
+    ("monthly",   "LTN 2y",    0.319),
 ])
 def test_frequency_robustness(freq, bond, claimed):
     t = load("tbl_frequency_robustness.csv")
@@ -79,7 +79,7 @@ def test_correlation_rises_with_horizon():
     ("Dilma Deterioration", 0.114),
     ("Reform Era",          0.199),
     ("COVID & Post-COVID",  0.227),
-    ("Current Cycle",       0.109),
+    ("Current Cycle",       0.110),
 ])
 def test_regime_correlations(regime, claimed):
     t = load("tbl_regime_correlations.csv", index_col=0)
@@ -101,7 +101,7 @@ def test_no_regime_is_statistically_distinguishable():
 
 # ── Section 5: tails ─────────────────────────────────────────────────────────
 @pytest.mark.parametrize("bond,claimed", [
-    ("NTN-B 5y", 0.279), ("LTN 2y", 0.211), ("NTN-F 10y", 0.294),
+    ("NTN-B 5y", 0.280), ("LTN 2y", 0.213), ("NTN-F 10y", 0.296),
 ])
 def test_conditional_tail_correlations(bond, claimed):
     t = load("tbl_conditional_correlations.csv", index_col=0)
@@ -152,9 +152,9 @@ def test_covid_spike_is_mostly_a_volatility_artefact():
 
 # ── Section 7: DCC ───────────────────────────────────────────────────────────
 @pytest.mark.parametrize("pair,claimed_t", [
-    ("Ibovespa x NTN-B 5y",  1.94),
-    ("Ibovespa x LTN 2y",    2.24),
-    ("Ibovespa x NTN-F 10y", 1.14),
+    ("Ibovespa x NTN-B 5y",  1.77),
+    ("Ibovespa x LTN 2y",    2.26),
+    ("Ibovespa x NTN-F 10y", 1.15),
 ])
 def test_dcc_t_statistics(pair, claimed_t):
     t = load("tbl_dcc_parameters.csv", index_col=0)
@@ -167,6 +167,19 @@ def test_dcc_time_variation_is_marginal():
     yes = t[t["time-varying (a>0, 5%)"] == "yes"]
     assert list(yes.index) == ["Ibovespa x LTN 2y"]
     assert t.loc["Ibovespa x LFT 1y", "time-varying (a>0, 5%)"] == "not identified"
+
+
+def test_dcc_crisis_ordering_is_stable_even_though_levels_are_not():
+    """
+    Section 7 leans on the ordering, not the levels, because `a` is weakly
+    identified and the levels move with the sample. Guard the ordering.
+    """
+    t = load("tbl_dcc_crisis_correlations.csv", index_col=0)
+    crises = t.drop("Full sample")
+    for col in ["NTN-B 5y", "LTN 2y", "NTN-F 10y"]:
+        assert crises[col].idxmin() == "GFC"
+        assert crises[col].idxmax() in ("Joesley", "COVID")
+    assert t.loc["Joesley", "NTN-F 10y"] / t.loc["Full sample", "NTN-F 10y"] > 2.5
 
 
 # ── Section 8: portfolio consequences ────────────────────────────────────────
@@ -217,7 +230,7 @@ def test_ibovespa_sharpe_over_cdi_is_negative():
 
 
 @pytest.mark.parametrize("asset,col,claimed", [
-    ("Ibovespa",  "Ann vol%", 26.32),
+    ("Ibovespa",  "Ann vol%", 26.34),
     ("Ibovespa",  "Max DD%", -59.96),
     ("NTN-B 5y",  "Max DD%",  -8.37),
     ("LFT 1y",    "Ann vol%",  0.23),
@@ -225,6 +238,234 @@ def test_ibovespa_sharpe_over_cdi_is_negative():
 def test_summary_stats(asset, col, claimed):
     t = load("tbl_summary_stats.csv", index_col=0)
     assert t.loc[asset, col] == pytest.approx(claimed, abs=0.02)
+
+
+# ── Section 9: the matched cross-country panel ───────────────────────────────
+GLOBAL = pytest.mark.skipif(
+    not (OUT / "tbl_global_correlations.csv").exists(),
+    reason="global panel not generated — run scripts/run_global_analysis.py first",
+)
+
+
+@GLOBAL
+@pytest.mark.parametrize("country,pre,post", [
+    ("United States",  -0.315, -0.102),
+    ("Germany",        -0.356,  0.183),
+    ("Japan",          -0.316, -0.093),
+    ("United Kingdom", -0.225,  0.123),
+    ("Brazil",          0.443,  0.522),
+])
+def test_global_correlations(country, pre, post):
+    t = load("tbl_global_correlations.csv", index_col=0)
+    assert t.loc[country, "rho pre-2020"] == pytest.approx(pre, abs=0.0015)
+    assert t.loc[country, "rho post-2020"] == pytest.approx(post, abs=0.0015)
+
+
+@GLOBAL
+def test_all_advanced_economies_were_significantly_negative_pre_2020():
+    """Section 9.2: every pre-2020 interval excludes zero, on the negative side."""
+    t = load("tbl_global_correlations.csv", index_col=0)
+    for c in ["United States", "Germany", "Japan", "United Kingdom"]:
+        hi = float(t.loc[c, "CI pre"].split(",")[1].rstrip("]"))
+        assert hi < 0, f"{c} pre-2020 CI does not exclude zero"
+
+
+@GLOBAL
+def test_no_advanced_economy_became_significantly_positive():
+    """Section 9.2: the post-2020 change is the loss of a hedge, not positive co-movement."""
+    t = load("tbl_global_correlations.csv", index_col=0)
+    for c in ["United States", "Germany", "Japan", "United Kingdom"]:
+        lo = float(t.loc[c, "CI post"].split(",")[0].lstrip("["))
+        hi = float(t.loc[c, "CI post"].split(",")[1].rstrip("]"))
+        assert lo < 0 < hi, f"{c} post-2020 CI no longer straddles zero"
+
+
+@GLOBAL
+def test_brazil_is_significantly_positive_in_both_periods_and_did_not_shift():
+    t = load("tbl_global_correlations.csv", index_col=0)
+    for col in ("CI pre", "CI post"):
+        lo = float(t.loc["Brazil", col].split(",")[0].lstrip("["))
+        assert lo > 0, f"Brazil {col} does not exclude zero on the positive side"
+    assert t.loc["Brazil", "shifted 5%"] == "no"
+    assert t.loc["Brazil", "p(shift)"] == pytest.approx(0.395, abs=0.03)
+
+
+@GLOBAL
+def test_only_germany_shifted_significantly():
+    t = load("tbl_global_correlations.csv", index_col=0)
+    shifted = t[t["shifted 5%"] == "yes"]
+    assert list(shifted.index) == ["Germany"]
+    assert t.loc["Germany", "shift"] == pytest.approx(0.539, abs=0.0015)
+
+
+@GLOBAL
+def test_convergence_is_directionally_unanimous_but_not_significant():
+    """Finding 11: gap narrowed 4/4, significant 1/4."""
+    t = load("tbl_global_convergence.csv", index_col=0)
+    assert (t["gap narrowed"] == "yes").all()
+    converged = t[t["converged 5%"] == "yes"]
+    assert list(converged.index) == ["Germany"]
+    assert t.loc["Germany", "DiD"] == pytest.approx(0.460, abs=0.02)
+    assert t.loc["Germany", "p"] < 0.05
+
+
+@GLOBAL
+def test_convergence_standard_errors_are_large():
+    """The reason convergence is not established: DiD SEs run 0.186-0.299."""
+    t = load("tbl_global_convergence.csv", index_col=0)
+    assert 0.15 < t["boot SE"].min() < 0.25
+    assert 0.25 < t["boot SE"].max() < 0.35
+
+
+@GLOBAL
+@pytest.mark.parametrize("country,claimed", [
+    ("United States",  -0.664),
+    ("Germany",        -0.594),
+    ("Japan",          -0.565),
+    ("United Kingdom", -0.455),
+    ("Brazil",          0.073),
+])
+def test_rolling_correlation_floor(country, claimed):
+    """Finding 12: the floor is the robust cross-sectional signature."""
+    t = load("tbl_global_rolling_correlation.csv", index_col=0)
+    assert t[country].min() == pytest.approx(claimed, abs=0.0015)
+
+
+@GLOBAL
+def test_only_brazil_never_goes_negative():
+    t = load("tbl_global_rolling_correlation.csv", index_col=0)
+    mins = t.min()
+    assert mins["Brazil"] > 0
+    assert (mins.drop("Brazil") < -0.4).all()
+
+
+@GLOBAL
+def test_bond_construction_does_not_drive_the_result():
+    """Section 9.1: the control that licenses the yield-based method for 4 countries."""
+    t = load("tbl_global_construction_check.csv", index_col=0)
+    v = t["value"]
+    assert v["yield-based vs PU-based, rho"] == pytest.approx(0.931, abs=0.002)
+    assert v["Ibov x bond, yield-based"] == pytest.approx(0.461, abs=0.0015)
+    assert v["Ibov x bond, PU-based"] == pytest.approx(0.475, abs=0.0015)
+    assert v["absolute difference"] < 0.02
+
+
+@GLOBAL
+def test_sign_regimes():
+    t = load("tbl_global_sign_regimes.csv", index_col=0)
+    for c in ["United States", "Germany", "Japan", "United Kingdom"]:
+        assert t.loc[c, "pre-2020 sign"] == "negative"
+        assert t.loc[c, "post-2020 sign"] == "indistinct"
+        assert t.loc[c, "ever significantly negative"] == "yes"
+    assert t.loc["Brazil", "pre-2020 sign"] == "positive"
+    assert t.loc["Brazil", "post-2020 sign"] == "positive"
+    assert t.loc["Brazil", "ever significantly negative"] == "no"
+
+
+# ── The documents themselves ─────────────────────────────────────────────────
+# Everything above checks the generated tables against values transcribed from the
+# prose. That leaves a gap: the prose can still drift from the tables, and nothing
+# notices. These tests close it by rendering the expected string from the table and
+# asserting it appears in the document -- which is how four stale figures survived
+# in README.md after the sample was pinned.
+PAPER = (BASE / "docs" / "04_final_paper.md")
+README = (BASE / "README.md")
+
+
+def _doc(path):
+    return path.read_text(encoding="utf-8")
+
+
+@GLOBAL
+def test_readme_construction_check_matches_the_table():
+    v = load("tbl_global_construction_check.csv", index_col=0)["value"]
+    txt = _doc(README)
+    assert f"+{v['Ibov x bond, yield-based']:.3f} yield-based" in txt
+    assert f"+{v['Ibov x bond, PU-based']:.3f} PU-based" in txt
+    assert f"differing by {v['absolute difference']:.3f}" in txt
+
+
+@GLOBAL
+def test_readme_brazil_panel_shift_matches_the_table():
+    t = load("tbl_global_correlations.csv", index_col=0)
+    txt = _doc(README)
+    pre, post = t.loc["Brazil", "rho pre-2020"], t.loc["Brazil", "rho post-2020"]
+    assert f"+{pre:.3f} → +{post:.3f}" in txt
+
+
+@GLOBAL
+def test_readme_rolling_floor_matches_the_table():
+    t = load("tbl_global_rolling_correlation.csv", index_col=0)
+    txt = _doc(README)
+    for country, label in [("United States", "US"), ("Germany", "DE"),
+                           ("Japan", "JP"), ("United Kingdom", "UK")]:
+        assert f"{label} {t[country].min():.3f}".replace("-", "−") in txt, \
+            f"README floor for {label} disagrees with the table"
+    assert f"Brazil +{t['Brazil'].min():.3f}" in txt
+
+
+@GLOBAL
+def test_readme_pre_and_post_2020_rows_match_the_table():
+    t = load("tbl_global_correlations.csv", index_col=0)
+    txt = _doc(README)
+    order = ["United States", "Germany", "Japan", "United Kingdom"]
+    pre = " / ".join(f"{t.loc[c, 'rho pre-2020']:.3f}" for c in order).replace("-", "−")
+    post = " / ".join(f"{t.loc[c, 'rho post-2020']:+.3f}" for c in order).replace("-", "−").replace("+", "+")
+    assert pre in txt, "README pre-2020 row disagrees with the table"
+    assert post in txt, "README post-2020 row disagrees with the table"
+
+
+def test_readme_conditional_tail_matches_the_table():
+    t = load("tbl_conditional_correlations.csv", index_col=0)
+    assert f"+{t.loc['NTN-B 5y', 'rho|Q10']:.3f}" in _doc(README)
+
+
+def test_paper_full_sample_correlations_appear_verbatim():
+    t = load("tbl_full_sample_correlations.csv", index_col=0)
+    txt = _doc(PAPER)
+    for pair in t.index:
+        assert f"+{t.loc[pair, 'rho']:.3f}" in txt, f"{pair} rho missing from the paper"
+
+
+def test_paper_frequency_headline_appears_verbatim():
+    """The abstract's daily -> monthly claim must match the table."""
+    t = load("tbl_frequency_robustness.csv")
+    d = t[(t["Frequency"] == "daily") & (t["Bond"] == "NTN-B 5y")]["rho"].iloc[0]
+    m = t[(t["Frequency"] == "monthly") & (t["Bond"] == "NTN-B 5y")]["rho"].iloc[0]
+    txt = _doc(PAPER)
+    assert f"+{d:.3f} daily" in txt
+    assert f"+{m:.3f} monthly" in txt
+
+
+def test_paper_forbes_rigobon_headline_appears_verbatim():
+    t = load("tbl_forbes_rigobon.csv", index_col=[0, 1])
+    txt = _doc(PAPER)
+    for crisis in ("COVID", "Joesley"):
+        row = t.loc[(crisis, "NTN-B 5y")]
+        assert f"+{row['rho crisis (raw)']:.3f}" in txt, f"{crisis} raw rho missing"
+        assert f"+{row['rho adjusted']:.3f}" in txt, f"{crisis} adjusted rho missing"
+
+
+@GLOBAL
+def test_paper_reports_the_actual_panel_length():
+    panel = pd.read_csv(BASE / "data" / "processed" / "global_panel.csv",
+                        index_col=0, parse_dates=True) if (
+        BASE / "data" / "processed" / "global_panel.csv").exists() else None
+    if panel is None:
+        pytest.skip("panel not built")
+    n_pre = int((panel.index <= "2019-12-31").sum())
+    n_post = int((panel.index > "2019-12-31").sum())
+    txt = _doc(PAPER)
+    assert f"{len(panel)} months" in txt
+    assert f"{n_pre} pre-break and {n_post} post-break months" in txt
+
+
+def test_no_document_still_advertises_an_api_key_requirement():
+    """Section 9 is reproducible without FRED_API_KEY; the docs must not say otherwise."""
+    for path in (README, PAPER, BASE / "docs" / "03_implementation_guide.md"):
+        txt = _doc(path)
+        assert "requires a free `FRED_API_KEY`" not in txt
+        assert "needs `FRED_API_KEY`" not in txt
 
 
 def test_rolling_portfolio_metrics():

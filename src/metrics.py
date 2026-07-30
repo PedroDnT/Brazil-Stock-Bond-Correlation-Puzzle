@@ -47,6 +47,50 @@ def corr_with_ci(x, y, alpha=0.05):
     return dict(rho=float(r), lo=lo, hi=hi, p=float(pv), n=n, sig=bool(lo * hi > 0))
 
 
+def bootstrap_did(pre_a, post_a, pre_b, post_b, n_boot=2000, block=6, seed=0):
+    """
+    Difference-in-differences of correlations, with a block-bootstrap p-value.
+
+        DiD = [rho(post_a) - rho(pre_a)] - [rho(post_b) - rho(pre_b)]
+
+    Each argument is a 2-column array-like (x, y) whose correlation is taken.
+    Used to test convergence: `a` is the country under test, `b` the benchmark.
+    DiD > 0 means a's correlation rose by more than the benchmark's, which is
+    what "moving toward the benchmark" means when a starts below it.
+
+    Testing the *gap* rather than each level separately matters because both
+    correlations are estimated with error; comparing two point estimates across
+    two periods without a joint test invites reading noise as convergence.
+    """
+    rng = np.random.default_rng(seed)
+
+    def prep(pair):
+        return pd.concat([pd.Series(pair[0]), pd.Series(pair[1])], axis=1).dropna().values
+
+    A0, A1 = prep(pre_a), prep(post_a)
+    B0, B1 = prep(pre_b), prep(post_b)
+    if min(len(A0), len(A1), len(B0), len(B1)) < block * 3:
+        return dict(did=np.nan, p=np.nan, boot_se=np.nan)
+
+    def rho(arr):
+        return np.corrcoef(arr[:, 0], arr[:, 1])[0, 1]
+
+    def boot_rho(arr):
+        n = len(arr)
+        idx = []
+        while len(idx) < n:
+            s = rng.integers(0, n)
+            idx.extend(range(s, min(s + block, n)))
+        return rho(arr[np.array(idx[:n])])
+
+    obs = (rho(A1) - rho(A0)) - (rho(B1) - rho(B0))
+    draws = np.array([(boot_rho(A1) - boot_rho(A0)) - (boot_rho(B1) - boot_rho(B0))
+                      for _ in range(n_boot)])
+    draws = draws[np.isfinite(draws)]
+    p = float(np.mean(np.abs(draws - draws.mean()) >= abs(obs)))
+    return dict(did=float(obs), p=p, boot_se=float(draws.std()))
+
+
 def bootstrap_corr_diff(x1, y1, x2, y2, n_boot=2000, block=21, seed=0):
     """
     Stationary-block-bootstrap p-value for H0: rho(sample 1) == rho(sample 2).

@@ -21,16 +21,19 @@ project/
 │   ├── 05_copula.ipynb
 │   ├── 06_portfolio_metrics.ipynb
 │   ├── 07_stress_test.ipynb
-│   └── 08_global_macro.ipynb    # hand-maintained; needs FRED_API_KEY
+│   └── 08_global_macro.ipynb    # matched cross-country panel; no API key needed
 ├── src/
-│   ├── fetch.py      # All data ingestion + validate_master()
-│   └── metrics.py    # Inference, Forbes-Rigobon, copulas, DCC, DR/ENB/PC1, VaR
+│   ├── fetch.py       # Brazilian ingestion + validate_master() + retry helper
+│   ├── global_data.py # Matched cross-country panel (FRED, keyless)
+│   └── metrics.py     # Inference, Forbes-Rigobon, copulas, DCC, DR/ENB/PC1, VaR
 ├── tests/
-│   ├── test_metrics.py          # 28 unit tests for the estimators
-│   └── test_paper_consistency.py # 49 tests: paper numbers vs outputs/
+│   ├── test_metrics.py          # 31 unit tests for the estimators
+│   ├── test_paper_consistency.py # 79 tests: paper + README numbers vs outputs/
+│   └── test_global_data.py       # 17 tests for the cross-country construction
 ├── scripts/
-│   ├── run_analysis.py          # regenerates every table in the paper
-│   └── build_notebooks.py       # generates notebooks 01-07
+│   ├── run_analysis.py          # Sections 4-8 -> outputs/tbl_*.csv
+│   ├── run_global_analysis.py   # Section 9    -> outputs/tbl_global_*.csv
+│   └── build_notebooks.py       # generates notebooks 01-08
 ├── config/plot_style.py         # shared matplotlib rcParams (apply_style())
 └── outputs/          # All charts/tables for the paper
 ```
