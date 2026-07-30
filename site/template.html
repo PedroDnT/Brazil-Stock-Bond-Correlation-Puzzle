@@ -6,31 +6,26 @@
 @font-face{font-family:'Plex Mono';font-style:normal;font-weight:400;font-display:block;src:url(data:font/woff2;base64,__PLEX400__) format('woff2');}
 @font-face{font-family:'Plex Mono';font-style:normal;font-weight:500;font-display:block;src:url(data:font/woff2;base64,__PLEX500__) format('woff2');}
 
-/* ---------- tokens ---------- */
+/* ---------- tokens ----------
+   Teal (--d1) is the page's only data hue: the one-pager carries a single
+   chart, so the second series colour and the sequential ramp are gone. */
 :root{
   --ground:#e2e3df; --panel:#f2f2ef; --panel-2:#e9eae6;
   --ink:#14181a; --ink-2:#5a625f; --ink-3:#7d8580;
   --rule:#c7cac4; --rule-soft:#d6d8d2;
-  --d1:#00909f; --d2:#ae7c02; --neg:#b0352a;
-  --seq1:#30b5c2; --seq2:#279fab; --seq3:#228994; --seq4:#1a757e; --seq5:#156068;
-  --sqt1:var(--ink); --sqt2:var(--ink); --sqt3:var(--ink); --sqt4:var(--panel); --sqt5:var(--panel);
+  --d1:#00909f;
   --tip-bg:#14181a; --tip-ink:#f2f2ef;
   --display:'Bodoni Moda',ui-serif,Georgia,serif;
   --body:'Archivo',ui-sans-serif,system-ui,'Helvetica Neue',sans-serif;
   --mono:'Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
-  --s1:.35rem; --s2:.7rem; --s3:1.1rem; --s4:1.8rem; --s5:2.8rem; --s6:4.4rem;
-  /* one reading measure for the whole document — px-based, so it does not
-     rescale with each element's own font size the way `ch` does */
-  --measure:39rem;
+  --s1:.35rem; --s2:.7rem; --s3:1.1rem; --s4:1.8rem; --s5:2.8rem;
 }
 @media (prefers-color-scheme:dark){
   :root{
     --ground:#101312; --panel:#1a1e1d; --panel-2:#222725;
     --ink:#e7e9e5; --ink-2:#9aa29e; --ink-3:#7c8480;
     --rule:#2c3230; --rule-soft:#242928;
-    --d1:#2ba6ae; --d2:#be8a1e; --neg:#d9705c;
-    --seq1:#2f5a5f; --seq2:#3b7680; --seq3:#4794a0; --seq4:#5fb0ba; --seq5:#84cbd3;
-    --sqt1:var(--ink); --sqt2:var(--ink); --sqt3:var(--panel); --sqt4:var(--panel); --sqt5:var(--panel);
+    --d1:#2ba6ae;
     --tip-bg:#f2f2ef; --tip-ink:#14181a;
   }
 }
@@ -38,32 +33,36 @@
   --ground:#101312; --panel:#1a1e1d; --panel-2:#222725;
   --ink:#e7e9e5; --ink-2:#9aa29e; --ink-3:#7c8480;
   --rule:#2c3230; --rule-soft:#242928;
-  --d1:#2ba6ae; --d2:#be8a1e; --neg:#d9705c;
-  --seq1:#2f5a5f; --seq2:#3b7680; --seq3:#4794a0; --seq4:#5fb0ba;
-  --seq0:#20302f;
+  --d1:#2ba6ae;
   --tip-bg:#f2f2ef; --tip-ink:#14181a;
 }
 :root[data-theme="light"]{
   --ground:#e2e3df; --panel:#f2f2ef; --panel-2:#e9eae6;
   --ink:#14181a; --ink-2:#5a625f; --ink-3:#7d8580;
   --rule:#c7cac4; --rule-soft:#d6d8d2;
-  --d1:#00909f; --d2:#ae7c02; --neg:#b0352a;
-  --seq1:#30b5c2; --seq2:#279fab; --seq3:#228994; --seq4:#1a757e; --seq5:#156068;
-  --sqt1:var(--ink); --sqt2:var(--ink); --sqt3:var(--ink); --sqt4:var(--panel); --sqt5:var(--panel);
+  --d1:#00909f;
   --tip-bg:#14181a; --tip-ink:#f2f2ef;
 }
 
 /* ---------- base ---------- */
 .page{background:var(--ground);color:var(--ink);font-family:var(--body);
-  font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased;
-  padding:0 0 var(--s6);}
+  font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;}
 .page *{box-sizing:border-box;}
-.doc{display:grid;
-  grid-template-columns:[full-start] minmax(1.25rem,1fr) [wide-start] minmax(0,7rem) [text-start] minmax(0,var(--measure)) [text-end] minmax(0,7rem) [wide-end] minmax(1.25rem,1fr) [full-end];
-  row-gap:0;}
-.doc > *{grid-column:text;}
-.doc > .plate,.doc > .wide{grid-column:wide;}
-.doc > .full{grid-column:full;}
+/* One screen: a single column of blocks, spaced by gap so no margin can
+   collapse or double against a neighbour. */
+.onepager{max-width:1180px;margin:0 auto;padding:var(--s4) var(--s3) var(--s4);
+  display:flex;flex-direction:column;gap:var(--s3);}
+/* Two paired rows, so nothing has to be cut to keep the page short:
+   hero + scorecard rail, then conclusion + qualifications. */
+.split{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);
+  gap:var(--s3);align-items:stretch;}
+@media (max-width:900px){.split{grid-template-columns:minmax(0,1fr);}}
+/* The hero row collapses earlier than the other: the chart needs ~800px to
+   keep its labels legible, so below ~1120px it takes the full width instead
+   of being squeezed into a column. */
+.split-hero{display:grid;grid-template-columns:minmax(0,2.7fr) minmax(0,1fr);
+  gap:var(--s3);align-items:stretch;}
+@media (max-width:1120px){.split-hero{grid-template-columns:minmax(0,1fr);}}
 
 p{margin:0 0 var(--s3);text-wrap:pretty;}
 h1,h2,h3{text-wrap:balance;margin:0;}
@@ -72,71 +71,69 @@ a:hover{border-bottom-width:2px;}
 a:focus-visible,button:focus-visible{outline:2px solid var(--d1);outline-offset:3px;border-radius:2px;}
 strong{font-weight:600;}
 em{font-style:italic;}
+code{font-family:var(--mono);font-size:.92em;}
 
 .eyebrow{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.14em;
   text-transform:uppercase;color:var(--ink-3);margin:0 0 var(--s2);}
 
 /* ---------- masthead ---------- */
-.masthead{padding:var(--s6) 0 var(--s4);}
-.masthead .rule-top{height:3px;background:var(--ink);margin-bottom:var(--s3);}
-.masthead h1{font-family:var(--display);font-variation-settings:'opsz' 96;
-  font-weight:600;font-size:clamp(2.6rem,7.2vw,4.6rem);line-height:.98;
-  letter-spacing:-.015em;margin:0 0 var(--s3);}
+.masthead .rule-top{height:3px;background:var(--ink);margin-bottom:var(--s2);}
+.mast-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:var(--s2) var(--s4);align-items:end;}
+.masthead h1{font-family:var(--display);font-variation-settings:'opsz' 72;
+  font-weight:600;font-size:clamp(2rem,5vw,3.3rem);line-height:1;
+  letter-spacing:-.015em;margin:0;}
 .masthead h1 .thin{font-weight:400;font-style:italic;}
-.deck{font-size:1.16rem;line-height:1.5;color:var(--ink-2);max-width:52ch;margin:0 0 var(--s4);}
-.byline{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);font-family:var(--mono);
-  font-size:12px;color:var(--ink-3);border-top:1px solid var(--rule);padding-top:var(--s2);}
+.byline{display:flex;flex-direction:column;align-items:flex-end;text-align:right;
+  gap:.15em;font-family:var(--mono);font-size:11.5px;line-height:1.45;color:var(--ink-3);}
 .byline b{color:var(--ink-2);font-weight:500;}
+.deck{font-size:1.06rem;line-height:1.5;color:var(--ink-2);max-width:64ch;
+  margin:var(--s3) 0 0;}
+@media (max-width:760px){
+  .mast-grid{grid-template-columns:minmax(0,1fr);}
+  .byline{align-items:flex-start;text-align:left;margin-top:var(--s2);}
+}
 
-/* ---------- key figures ---------- */
+/* ---------- scorecards ---------- */
 .keyfigs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:1px;background:var(--rule);border:1px solid var(--rule);margin:var(--s4) 0 var(--s5);}
-.keyfigs.three{grid-template-columns:repeat(3,minmax(0,1fr));}
-@media (max-width:860px){
-  .keyfigs,.keyfigs.three{grid-template-columns:repeat(2,minmax(0,1fr));}
-  .keyfigs.three .kf:last-child{grid-column:span 2;}
-}
-@media (max-width:520px){
-  .keyfigs,.keyfigs.three{grid-template-columns:minmax(0,1fr);}
-  .keyfigs.three .kf:last-child{grid-column:auto;}
-}
-.kf{background:var(--panel);padding:var(--s3) var(--s3) var(--s3);display:flex;
-  flex-direction:column;gap:var(--s1);}
-.kf .kf-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);}
+  gap:1px;background:var(--rule);border:1px solid var(--rule);margin:0;
+  align-content:stretch;}
+/* Beside the hero the scorecards stack into a rail; once the hero row
+   collapses they go back to running across. */
+.keyfigs.rail{grid-template-columns:minmax(0,1fr);}
+@media (max-width:1120px){.keyfigs.rail{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media (max-width:860px){.keyfigs,.keyfigs.rail{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (max-width:520px){.keyfigs,.keyfigs.rail{grid-template-columns:minmax(0,1fr);}}
+.kf{background:var(--panel);padding:var(--s3);display:flex;flex-direction:column;
+  gap:var(--s1);justify-content:center;}
+.kf .kf-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink-3);}
+/* Uppercasing ρ yields Ρ, which is indistinguishable from a Latin P — so the
+   symbol opts out of the label's text-transform. */
+.kf .kf-l .sym{text-transform:none;}
 .kf .kf-v{font-family:var(--body);font-weight:600;font-size:2rem;line-height:1;letter-spacing:-.02em;}
-.kf .kf-n{font-size:.82rem;line-height:1.4;color:var(--ink-2);}
+.kf .kf-n{font-size:.8rem;line-height:1.4;color:var(--ink-2);}
 
-/* ---------- sections ----------
-   Sections claim the wide column so figures can breathe; prose inside is
-   re-constrained to the reading measure and stays optically centred. */
-.doc > .sec{grid-column:wide;}
-.sec{padding-top:var(--s5);}
-.sec > *{max-width:var(--measure);margin-left:auto;margin-right:auto;}
-.sec > .plate,.sec > .dtable,.sec > .keyfigs{max-width:none;}
-.sec h2{font-family:var(--display);font-variation-settings:'opsz' 40;font-weight:600;
-  font-size:clamp(1.7rem,3.6vw,2.4rem);line-height:1.08;letter-spacing:-.012em;margin:0 auto var(--s3);}
-.sec h3{font-family:var(--body);font-weight:600;font-size:1.02rem;letter-spacing:.005em;
-  margin:var(--s4) auto var(--s2);}
-.sec .lede-p{font-size:1.06rem;color:var(--ink);}
-.pull{font-family:var(--display);font-variation-settings:'opsz' 28;font-size:1.35rem;
-  line-height:1.35;font-style:italic;color:var(--ink);border-left:3px solid var(--d1);
-  padding:var(--s1) 0 var(--s1) var(--s3);margin:var(--s4) auto;}
-
-/* ---------- plates (figures) ---------- */
-.plate{background:var(--panel);border:1px solid var(--rule);margin:var(--s4) 0 var(--s5);
-  position:relative;}
+/* ---------- hero plate ---------- */
+/* Column flex so that when the plate stretches to match the scorecard rail the
+   slack goes to the chart body — which centres the chart — instead of pooling
+   as dead space under the caption. */
+.plate{background:var(--panel);border:1px solid var(--rule);margin:0;position:relative;
+  display:flex;flex-direction:column;}
 .plate-head{padding:var(--s3) var(--s3) var(--s2);display:flex;flex-wrap:wrap;
   align-items:baseline;gap:var(--s1) var(--s2);border-bottom:1px solid var(--rule-soft);}
 .plate-num{font-family:var(--display);font-variation-settings:'opsz' 20;font-weight:600;
   font-size:.95rem;letter-spacing:.02em;color:var(--d1);}
 .plate-title{font-weight:600;font-size:1rem;flex:1 1 16rem;}
-.plate-src{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);text-transform:uppercase;}
-.plate-body{padding:var(--s3);overflow-x:auto;}
-.scrollhint{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--ink-3);margin:var(--s2) 0 0;position:sticky;left:0;}
-.plate-foot{padding:0 var(--s3) var(--s3);display:flex;flex-wrap:wrap;gap:var(--s2) var(--s3);
-  align-items:flex-start;justify-content:space-between;}
-.caption{font-size:.86rem;line-height:1.5;color:var(--ink-2);max-width:60ch;margin:0;}
+.plate-src{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  color:var(--ink-3);text-transform:uppercase;}
+.plate-body{padding:var(--s2) var(--s3);overflow-x:auto;
+  flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;}
+.scrollhint{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin:var(--s2) 0 0;position:sticky;left:0;}
+.plate-foot{padding:0 var(--s3) var(--s3);display:flex;flex-wrap:wrap;
+  gap:var(--s2) var(--s3);align-items:flex-start;justify-content:space-between;}
+.caption{font-size:.85rem;line-height:1.5;color:var(--ink-2);max-width:66ch;margin:0;}
 .caption b{color:var(--ink);font-weight:600;}
 
 .tbl-btn{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
@@ -146,31 +143,20 @@ em{font-style:italic;}
 .tbl-wrap{display:none;padding:0 var(--s3) var(--s3);overflow-x:auto;}
 .tbl-wrap.open{display:block;}
 
-/* ---------- legend ---------- */
-.legend{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);font-family:var(--mono);
-  font-size:11px;color:var(--ink-2);padding:0 0 var(--s2);}
-.legend span{display:inline-flex;align-items:center;gap:.45em;}
-.legend i{width:14px;height:3px;border-radius:2px;display:inline-block;}
-.legend i.dot{width:9px;height:9px;border-radius:50%;}
-
 /* ---------- svg ---------- */
 .chart{display:block;width:100%;height:auto;}
-/* Single wide charts keep a legible floor and scroll inside the plate rather
-   than shrinking their labels away; small multiples reflow instead. */
-.plate-body > div > .chart{min-width:700px;}
+/* Native width is the cap: upscaling the hero would cost ~130px of height for
+   no added detail. The min-width floor keeps labels legible on a phone, where
+   the plate scrolls sideways instead (see markScroll). */
+.plate-body > div > .chart{min-width:700px;max-width:800px;margin:0 auto;}
 .chart text{font-family:var(--mono);fill:var(--ink-2);}
 .chart .ax{font-size:11px;fill:var(--ink-3);}
 .chart .cat{font-size:12px;fill:var(--ink);}
 .chart .val{font-size:12px;font-weight:500;fill:var(--ink);
   paint-order:stroke;stroke:var(--panel);stroke-width:3.5px;stroke-linejoin:round;}
-/* Labels sitting inside a filled cell need no surface halo — the fill already
-   separates them, and a same-colour halo would thicken the glyphs into blobs. */
-.chart .val.oncell{stroke:none;}
 .chart .grid{stroke:var(--rule-soft);stroke-width:1;}
 .chart .zero{stroke:var(--ink);stroke-width:2;}
-.chart .facet-t{font-size:11.5px;font-weight:500;fill:var(--ink);}
 .hit{cursor:crosshair;}
-.grid-multiples{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:var(--s3);}
 
 .tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-120%);
   background:var(--tip-bg);color:var(--tip-ink);font-family:var(--mono);font-size:11.5px;
@@ -178,7 +164,7 @@ em{font-style:italic;}
 .tip.on{opacity:1;}
 .tip b{font-weight:500;}
 
-/* ---------- tables ---------- */
+/* ---------- table (hero audit trail) ---------- */
 table{border-collapse:collapse;width:100%;font-size:.83rem;font-variant-numeric:tabular-nums;}
 th,td{text-align:right;padding:.42em .6em;border-bottom:1px solid var(--rule-soft);white-space:nowrap;}
 th:first-child,td:first-child{text-align:left;white-space:normal;}
@@ -188,44 +174,29 @@ tbody tr:last-child td{border-bottom:none;}
 tbody td{font-family:var(--mono);}
 tbody td:first-child{font-family:var(--body);}
 tr.emph td{font-weight:600;color:var(--ink);background:var(--panel-2);}
-.num-pos{color:var(--d1);}
-.num-neg{color:var(--neg);}
-.dtable{margin:var(--s3) 0 var(--s5);border:1px solid var(--rule);background:var(--panel);}
-.dtable .plate-head{border-bottom:1px solid var(--rule-soft);}
-.dtable .t-body{padding:var(--s2) var(--s3) var(--s3);overflow-x:auto;}
 
-/* ---------- verdict chips ---------- */
-.chip{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
-  border:1px solid var(--rule);padding:.25em .55em;color:var(--ink-2);}
-.chip.on{border-color:var(--d2);color:var(--ink);}
+/* ---------- conclusion ---------- */
+.conclusion{background:var(--panel);border:1px solid var(--rule);padding:var(--s3) var(--s4);}
+.conclusion h2{font-family:var(--display);font-variation-settings:'opsz' 28;font-weight:600;
+  font-size:1.35rem;line-height:1.15;letter-spacing:-.01em;margin:0 0 var(--s2);}
+.conclusion p{margin:0;font-size:.95rem;line-height:1.6;color:var(--ink-2);max-width:82ch;}
+.conclusion strong{color:var(--ink);}
 
-/* ---------- findings ---------- */
-.findings{list-style:none;padding:0;margin:var(--s3) auto 0;display:grid;gap:1px;
-  background:var(--rule);border:1px solid var(--rule);}
-.findings li{background:var(--panel);padding:var(--s3);display:grid;
-  grid-template-columns:auto 1fr;gap:var(--s3);align-items:start;}
-.findings .fno{font-family:var(--display);font-variation-settings:'opsz' 20;font-weight:600;
-  font-size:1.1rem;color:var(--d1);min-width:1.6em;}
-.findings p{margin:0;font-size:.94rem;line-height:1.55;}
-.findings b{display:block;margin-bottom:.15em;}
-
-/* ---------- method ---------- */
-.method{background:var(--panel);border:1px solid var(--rule);padding:var(--s4) var(--s3);margin-top:var(--s4);}
-.method h3{margin-top:0;}
-.method h3 + p{margin-top:0;}
-pre{font-family:var(--mono);font-size:12px;line-height:1.7;background:var(--panel-2);
-  border:1px solid var(--rule-soft);padding:var(--s2) var(--s3);overflow-x:auto;margin:0 0 var(--s3);}
-.deflist{display:grid;grid-template-columns:auto 1fr;gap:.35em var(--s3);font-size:.88rem;margin:0 0 var(--s3);}
-.deflist dt{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;
-  color:var(--ink-3);padding-top:.25em;}
-.deflist dd{margin:0;color:var(--ink-2);}
-
-.endnote{border-top:1px solid var(--rule);margin-top:var(--s5);padding-top:var(--s3);
-  font-size:.82rem;color:var(--ink-3);line-height:1.6;}
+/* ---------- qualifications ----------
+   Not decoration. The scorecards above quote point estimates; these lines are
+   what keep quoting them honest, so they ship with the numbers. */
+.caveats{background:var(--panel);border:1px solid var(--rule);padding:var(--s3);}
+.caveats h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:500;margin:0 0 var(--s2);}
+.caveats ul{list-style:none;margin:0;padding:0;display:grid;gap:.45em;}
+.caveats li{font-size:.8rem;line-height:1.45;color:var(--ink-3);
+  padding-left:1.1em;position:relative;}
+.caveats li::before{content:"—";position:absolute;left:0;color:var(--d1);}
+.caveats .src{margin:var(--s2) 0 0;font-size:.78rem;line-height:1.5;color:var(--ink-3);}
 
 /* ---------- reveal ---------- */
 /* Scoped to .js-rv so the page is fully visible if the script never runs. */
-.js-rv .rv{opacity:0;transform:translateY(10px);transition:opacity .55s ease,transform .55s ease;}
+.js-rv .rv{opacity:0;transform:translateY(10px);transition:opacity .5s ease,transform .5s ease;}
 .js-rv .rv.in{opacity:1;transform:none;}
 @media (prefers-reduced-motion:reduce){
   .js-rv .rv{opacity:1;transform:none;transition:none;}
@@ -233,31 +204,34 @@ pre{font-family:var(--mono);font-size:12px;line-height:1.7;background:var(--pane
 }
 @media (max-width:640px){
   .page{font-size:16px;}
-  .findings li{grid-template-columns:1fr;gap:var(--s1);}
   .plate-body{padding:var(--s2);}
+  .conclusion{padding:var(--s3);}
 }
 </style>
 
 <div class="page">
-<div class="doc">
+<div class="onepager">
 
   <header class="masthead">
     <div class="rule-top"></div>
-    <p class="eyebrow">Working paper · Brazil · Jan 2005 – Jul 2026 · 5,338 paired trading days</p>
-    <h1>A Floor,<br><span class="thin">Not a Spike</span></h1>
-    <p class="deck">Brazilian government bonds are diversifiers, not hedges. Across two decades and
-      six macro regimes the stock-bond correlation never turns reliably negative — and most of the
-      crisis spikes everyone quotes dissolve once you correct for volatility.</p>
-    <div class="byline">
-      <span><b>Pedro Nogueira</b></span>
-      <span>OCTO Inteligência de Dados / FGV EESP</span>
-      <span>July 2026</span>
-      <span>Replication &amp; extension of Adrian, Kramer &amp; Malik (IMF, Feb 2026)</span>
+    <div class="mast-grid">
+      <div>
+        <p class="eyebrow">Working paper · Brazil · Jan 2005 – Jul 2026 · 5,338 paired trading days</p>
+        <h1>A Floor, <span class="thin">Not a Spike</span></h1>
+      </div>
+      <div class="byline">
+        <span><b>Pedro Todescan</b></span>
+        <span>July 2026</span>
+        <span>Replication &amp; extension of<br>Adrian, Kramer &amp; Malik (IMF, Feb 2026)</span>
+      </div>
     </div>
+    <p class="deck">Brazilian government bonds are diversifiers, not hedges. Across two decades
+      and six macro regimes the correlation never turns reliably negative — that floor, not a
+      crisis-time spike, is what distinguishes Brazil.</p>
   </header>
 
-  <!-- ============ HERO FIGURE ============ -->
-  <figure class="plate rv" id="fig1">
+  <div class="split-hero rv">
+  <figure class="plate" id="fig1">
     <div class="plate-head">
       <span class="plate-num">Fig. 1</span>
       <span class="plate-title">The correlation has a floor: Ibovespa × NTN-B 5y by macro regime</span>
@@ -265,396 +239,71 @@ pre{font-family:var(--mono);font-size:12px;line-height:1.7;background:var(--pane
     </div>
     <div class="plate-body"><div id="c1"></div></div>
     <div class="plate-foot">
-      <p class="caption">Pearson correlation of daily log returns with Fisher-z 95% intervals.
-        <b>No regime reaches negative territory</b>, and a stationary block bootstrap (21-day blocks,
-        1,500 replications) cannot distinguish any regime from the calmest one — every p &gt; 0.05.
-        The upward drift after 2013 is suggestive, not established.</p>
+      <p class="caption">Daily log returns, Fisher-z 95% intervals.
+        <b>No regime reaches negative territory</b>, and none is distinguishable from the calmest.</p>
       <button class="tbl-btn" data-tbl="t1">Table</button>
     </div>
     <div class="tbl-wrap" id="t1"></div>
   </figure>
 
-  <div class="keyfigs rv">
+  <div class="keyfigs rail">
     <div class="kf">
-      <span class="kf-l">Daily ρ, Ibov × NTN-B</span>
+      <span class="kf-l"><span class="sym">ρ</span> daily · Ibov × NTN-B</span>
       <span class="kf-v">+0.122</span>
-      <span class="kf-n">95% CI [+0.096, +0.149]. Small, positive, precisely estimated.</span>
+      <span class="kf-n">95% CI [+0.096, +0.149]</span>
     </div>
     <div class="kf">
-      <span class="kf-l">Monthly ρ, same pair</span>
+      <span class="kf-l"><span class="sym">ρ</span> monthly · same pair</span>
       <span class="kf-v">+0.405</span>
-      <span class="kf-n">The horizon triples the estimate. This is the number comparable to the IMF's.</span>
+      <span class="kf-n">Horizon triples it — this is the figure comparable to the IMF's</span>
     </div>
     <div class="kf">
       <span class="kf-l">Regimes distinguishable</span>
       <span class="kf-v">0 of 5</span>
-      <span class="kf-n">Bootstrap tests against the Lula Boom baseline. Nothing clears 5%.</span>
+      <span class="kf-n">Block bootstrap vs the calmest; nothing clears 5%</span>
     </div>
     <div class="kf">
       <span class="kf-l">Ibovespa Sharpe vs CDI</span>
       <span class="kf-v">−0.07</span>
-      <span class="kf-n">2005–2026. The domestic equity premium over cash was negative.</span>
+      <span class="kf-n">The domestic equity premium over cash was negative</span>
     </div>
   </div>
+  </div>
 
-  <!-- ============ INTRO ============ -->
-  <section class="sec" id="intro">
-    <p class="eyebrow">The question</p>
-    <h2>Is Brazil where advanced economies are heading?</h2>
-    <p class="lede-p">The IMF's February 2026 study dates a structural breakdown in stock-bond
-      diversification across the US, Germany, Japan and the UK to late 2019, and attributes it to
-      post-pandemic supply shocks, fiscal expansion and quantitative tightening. Every one of those
-      mechanisms has been a permanent feature of Brazilian finance for decades — plus a fourth the
-      framework omits: <strong>sovereign credit risk</strong>, which can push equity valuations and
-      government bond prices down together.</p>
-    <p>The natural conjecture is that Brazil already <em>is</em> the destination. This page tests
-      that conjecture against 21 years of daily data rather than assuming it, and the answer is more
-      qualified than the conjecture suggests. The distinguishing feature is not a high correlation
-      or a crisis-time breakdown. It is the absence of any negative-correlation regime to revert to.</p>
-    <p class="pull">The sovereign channel implies a floor, not a level: it should stop the
-      correlation turning reliably negative without necessarily driving it high. That is exactly
-      what the data show.</p>
+  <div class="split rv">
+  <section class="conclusion">
+    <h2>The switch is shock type, not crisis</h2>
+    <p>Duration diversifies global risk-off episodes and amplifies domestic fiscal-political
+      ones. <strong>NTN-B returned +5.8pp over CDI through the GFC and +1.3pp through
+      COVID</strong>; the only two episodes where it lost to cash — Joesley Day and the 2024
+      fiscal scare — were both domestic. In the daily left tail, though, the diversification
+      does fail: <strong>lower-tail dependence is 0.143 against the 0.050 implied by
+      independence</strong>, so stocks and bonds crash together nearly three times as often as
+      chance, and conditional on the worst decile of equity days ρ doubles to +0.279. No
+      allocation within domestic fixed income turns these bonds into a hedge. Against a
+      domestic fiscal shock the hedges are short LFT and international assets — and long LFT
+      is not the risk-free instrument it is usually assumed to be, drawing down 1.33% at its
+      longest maturity against 0.008% at one year.</p>
   </section>
 
-  <!-- ============ HORIZON ============ -->
-  <section class="sec" id="horizon">
-    <p class="eyebrow">Paper §4.3 · Table 5</p>
-    <h2>The horizon matters more than any other modelling choice</h2>
-    <p>Daily estimates are attenuated — the Ibovespa close, the Tesouro reference price and the CDI
-      accrual are not struck at the same instant. Lengthen the return interval and the macro
-      co-movement appears. For NTN-B the correlation more than triples from daily to monthly; for
-      NTN-F it more than doubles to +0.473. The LFT, with near-zero duration, stays flat at every
-      horizon, as it should.</p>
-
-    <figure class="plate rv" id="fig2">
-      <div class="plate-head">
-        <span class="plate-num">Fig. 2</span>
-        <span class="plate-title">Correlation with Ibovespa by return frequency</span>
-        <span class="plate-src">Paper §4.3 · Table 5</span>
-      </div>
-      <div class="plate-body"><div class="grid-multiples" id="c2"></div></div>
-      <div class="plate-foot">
-        <p class="caption">Same pairs, same sample, four sampling frequencies. Shared vertical
-          scale across all four panels. <b>The comparison with the developed-market literature has
-          to be made at matched frequency</b> — that work is monthly and quarterly, so the relevant
-          Brazilian figure is +0.41, not +0.12.</p>
-        <button class="tbl-btn" data-tbl="t2">Table</button>
-      </div>
-      <div class="tbl-wrap" id="t2"></div>
-    </figure>
+  <section class="caveats">
+    <h3>Qualifications</h3>
+    <ul>
+      <li>No regime is statistically distinguishable from the calmest — all bootstrap
+        p&nbsp;&gt;&nbsp;0.05. The post-2013 upward drift is suggestive, not established.</li>
+      <li>Most crisis correlation spikes do not survive the Forbes-Rigobon volatility
+        adjustment: COVID falls from +0.370 raw to +0.124, and the GFC shows no elevation at all.</li>
+      <li>Gaussian VaR understates tail risk given the kurtosis in these series and should be
+        read as a lower bound; the Joesley window is 11 trading days, so its estimate is imprecise.</li>
+      <li>Regime boundaries are researcher-defined rather than estimated, and the §9
+        global-macro extension was not reproduced — those claims are open, not established.</li>
+    </ul>
+    <p class="src">Figures transcribed from <code>docs/04_final_paper.md</code>, which
+      <code>scripts/run_analysis.py</code> regenerates from free public data (IPEADATA, BCB SGS,
+      Tesouro Transparente). Full method, all thirteen tables, the DCC and copula estimates and
+      the complete limitations are in the paper.</p>
   </section>
-
-  <!-- ============ FORBES-RIGOBON ============ -->
-  <section class="sec" id="crisis">
-    <p class="eyebrow">Paper §6 · Table 8</p>
-    <h2>Most crisis spikes are volatility artefacts</h2>
-    <p>Forbes and Rigobon (2002) showed that measured correlation is conditional on market
-      volatility: when the variance of the source market rises, the sample correlation is biased
-      upward even if the propagation mechanism is unchanged. Brazilian crisis windows carry five to
-      ten times calm-period equity variance, so the correction is not cosmetic.</p>
-    <p>Applied to six episodes, it reverses the standard narrative. <strong>The GFC shows no
-      correlation elevation at all</strong> — raw correlation barely moves despite equity variance
-      rising nearly ninefold, and the adjusted figure falls below the calm-period level. Roughly two
-      thirds of COVID's apparent spike is heteroskedasticity. Only Joesley Day, a purely domestic
-      political shock, shows unambiguous contagion.</p>
-
-    <figure class="plate rv" id="fig3">
-      <div class="plate-head">
-        <span class="plate-num">Fig. 3</span>
-        <span class="plate-title">Raw versus volatility-adjusted crisis correlation, Ibovespa × NTN-B</span>
-        <span class="plate-src">Paper §6 · Table 8</span>
-      </div>
-      <div class="plate-body"><div id="c3"></div></div>
-      <div class="plate-foot">
-        <p class="caption">ρ* = ρ<sub>c</sub> / √(1 + δ(1 − ρ<sub>c</sub>²)), with δ = σ²<sub>crisis</sub>/σ²<sub>calm</sub> − 1.
-          <b>“Contagion” means the adjusted estimate still exceeds the calm-period 0.080</b>; otherwise
-          the spike is interdependence — the same relationship seen through a higher-variance lens.
-          The Joesley window is 11 trading days, so its estimate is imprecise; the magnitude is not.</p>
-        <button class="tbl-btn" data-tbl="t3">Table</button>
-      </div>
-      <div class="tbl-wrap" id="t3"></div>
-    </figure>
-  </section>
-
-  <!-- ============ TAIL ============ -->
-  <section class="sec" id="tail">
-    <p class="eyebrow">Paper §5 · Tables 6 &amp; 7</p>
-    <h2>Where the diversification does fail: the daily left tail</h2>
-    <p>Crisis windows are one horizon; single days are another. Conditional on the worst decile of
-      equity days the NTN-B correlation more than doubles to +0.279, with an interval comfortably
-      excluding zero. The copula evidence points the same way and adds asymmetry.</p>
-    <p>The Student-t copula wins on AIC for all four pairs, but it imposes equal upper and lower tail
-      dependence by construction and therefore cannot represent what is actually there. The
-      non-parametric exceedance rates can: <strong>Brazilian stocks and bonds crash together more
-      often than they boom together.</strong></p>
-
-    <figure class="plate rv" id="fig4">
-      <div class="plate-head">
-        <span class="plate-num">Fig. 4</span>
-        <span class="plate-title">Empirical tail dependence at the 5% threshold</span>
-        <span class="plate-src">Paper §5.2 · Table 7</span>
-      </div>
-      <div class="plate-body"><div id="c4"></div></div>
-      <div class="plate-foot">
-        <p class="caption">P(bond in worst 5% | equity in worst 5%), and its upper-tail mirror.
-          <b>For Ibovespa × NTN-B the lower-tail figure is 0.143 against the 0.050 implied by
-          independence</b> — 38 joint tail events where 13 were expected. The LFT shows no lower-tail
-          dependence. Fitted Student-t λ<sub>L</sub> for the same pair is 0.014, an order of magnitude
-          below the empirical value, which is why the non-parametric estimate is the one quoted.</p>
-        <button class="tbl-btn" data-tbl="t4">Table</button>
-      </div>
-      <div class="tbl-wrap" id="t4"></div>
-    </figure>
-
-    <div class="dtable rv">
-      <div class="plate-head">
-        <span class="plate-num">Tbl. A</span>
-        <span class="plate-title">Correlation conditional on equity stress</span>
-        <span class="plate-src">Paper §5.1 · Table 6</span>
-      </div>
-      <div class="t-body" id="tA"></div>
-    </div>
-  </section>
-
-  <!-- ============ CUSHION ============ -->
-  <section class="sec" id="cushion">
-    <p class="eyebrow">Paper §8.2 · Tables 11 &amp; 12</p>
-    <h2>And yet bonds cushioned four of six crises</h2>
-    <p>Total return is misleading in a market with a 10–15% cash rate: a seven-month crisis window
-      accrues roughly 7% of carry before any price moves, so a bond portfolio that “made money in the
-      GFC” may simply have earned it. Measured in excess of CDI — the only benchmark that means
-      anything domestically — NTN-B still delivered positive excess returns in four of the six
-      episodes, including both large equity drawdowns.</p>
-    <p>The two episodes where bonds underperformed cash, Joesley and Fiscal24, are both domestic
-      fiscal-political shocks. <strong>Shock type, not crisis per se, determines whether Brazilian
-      bonds diversify.</strong></p>
-
-    <figure class="plate rv" id="fig5">
-      <div class="plate-head">
-        <span class="plate-num">Fig. 5</span>
-        <span class="plate-title">Crisis-window return in excess of CDI</span>
-        <span class="plate-src">Paper §8.2 · Table 12</span>
-      </div>
-      <div class="plate-body"><div id="c5"></div></div>
-      <div class="plate-foot">
-        <p class="caption">Percentage points over compounded CDI across each researcher-defined
-          crisis window. <b>NTN-B returned +5.8pp during the GFC, when the Ibovespa fell 26.5%</b>.
-          The 60/40 lost 20.0pp over cash in the same window — that loss is the equity leg, not a
-          diversification failure in the bond leg. Holding Selic-linked cash is the benchmark, so an
-          LFT-only portfolio is 0.0 by definition.</p>
-        <button class="tbl-btn" data-tbl="t5">Table</button>
-      </div>
-      <div class="tbl-wrap" id="t5"></div>
-    </figure>
-  </section>
-
-  <!-- ============ RISK ============ -->
-  <section class="sec" id="risk">
-    <p class="eyebrow">Paper §8.4 · Table 13</p>
-    <h2>Stressed VaR is a volatility story, not a correlation story</h2>
-    <p>The 60/40's 99% ten-day VaR rises 2.8× from calm conditions to the COVID window. Almost none
-      of that comes from correlation. Shrinking the full-sample correlation matrix all the way to
-      equicorrelation — every ρ forced to 1 — raises the same VaR only from 7.5% to 8.3%, an increase
-      of 11.3%. Because Brazilian domestic correlations start near zero rather than negative, the
-      equicorrelation stress is a smaller shock here than it would be for a US 60/40 portfolio.</p>
-
-    <figure class="plate rv" id="fig6">
-      <div class="plate-head">
-        <span class="plate-num">Fig. 6</span>
-        <span class="plate-title">99% ten-day Gaussian VaR, % of capital</span>
-        <span class="plate-src">Paper §8.4 · Table 13</span>
-      </div>
-      <div class="plate-body"><div id="c6"></div></div>
-      <div class="plate-foot">
-        <p class="caption">Ten days is the Basel market-risk horizon and is comparable in length to
-          the windows the covariances are estimated from. <b>Gaussian VaR understates tail risk given
-          the kurtosis in these series and should be read as a lower bound.</b> Joesley is excluded:
-          11 trading days cannot support a 5×5 covariance matrix. Annualising a COVID-window
-          covariance produces 60/40 VaR above 100% of capital — for a long-only unlevered portfolio
-          that is not conservative, it is arithmetically impossible.</p>
-        <button class="tbl-btn" data-tbl="t6">Table</button>
-      </div>
-      <div class="tbl-wrap" id="t6"></div>
-    </figure>
-  </section>
-
-  <!-- ============ LFT ============ -->
-  <section class="sec" id="lft">
-    <p class="eyebrow">Paper §8.3</p>
-    <h2>“The LFT” is not one asset</h2>
-    <p>The Tesouro Selic is routinely described as a uniform domestic safe haven. Split it by
-      maturity and that holds only at the short end. The distinction is invisible if you define the
-      LFT return as compounded CDI, because such a series is monotonically increasing by
-      construction — “the LFT never loses money” becomes a property of the definition rather than a
-      finding. Built from observed unit prices the claim is falsifiable, and for long LFTs it fails.</p>
-
-    <div class="keyfigs three rv">
-      <div class="kf">
-        <span class="kf-l">LFT ~1 year · max drawdown</span>
-        <span class="kf-v">−0.008%</span>
-        <span class="kf-n">Over 21 years. Four negative days out of 5,335. The reputation is earned.</span>
-      </div>
-      <div class="kf">
-        <span class="kf-l">LFT longest outstanding · max drawdown</span>
-        <span class="kf-v">−1.325%</span>
-        <span class="kf-n">October 2020 deságio, when heavy issuance met fiscal stress. 73 negative days out of 5,380.</span>
-      </div>
-      <div class="kf">
-        <span class="kf-l">Worst single day, long LFT</span>
-        <span class="kf-v">−0.229%</span>
-        <span class="kf-n">Against −0.004% for the 1-year. A different instrument, not a longer version of the same one.</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ TABLES ============ -->
-  <section class="sec" id="tables">
-    <p class="eyebrow">Paper §4.1 · Tables 1 &amp; 2</p>
-    <h2>The full-sample picture</h2>
-    <p>All three duration-bearing bonds show small, precisely estimated positive correlations; the
-      LFT is statistically indistinguishable from zero, as its near-zero duration implies. A
-      correlation of +0.12 does not mean stocks and bonds move together in any dramatic sense — it
-      means they are close to uncorrelated with a positive tilt, and an asset at ρ ≈ 0.12 still
-      reduces portfolio variance substantially.</p>
-
-    <div class="dtable rv">
-      <div class="plate-head">
-        <span class="plate-num">Tbl. B</span>
-        <span class="plate-title">Full-sample correlations with Ibovespa, daily log returns</span>
-        <span class="plate-src">Paper §4.1 · Table 1</span>
-      </div>
-      <div class="t-body" id="tB"></div>
-    </div>
-
-    <div class="dtable rv">
-      <div class="plate-head">
-        <span class="plate-num">Tbl. C</span>
-        <span class="plate-title">Summary statistics, annualised</span>
-        <span class="plate-src">Paper §4.1 · Table 2</span>
-      </div>
-      <div class="t-body" id="tC"></div>
-    </div>
-    <p>Every series rejects normality decisively — Jarque-Bera p &lt; 10⁻¹⁵ throughout, with excess
-      kurtosis from 4.6 to 28.4 and pronounced negative skew in every bond series. That is what
-      motivates the copula and Expected Shortfall treatment rather than a Gaussian one.</p>
-  </section>
-
-  <!-- ============ FINDINGS ============ -->
-  <section class="sec" id="findings">
-    <p class="eyebrow">Conclusions</p>
-    <h2>Nine findings</h2>
-    <ol class="findings rv">
-      <li><span class="fno">1</span><p><b>The correlation is positive, precisely estimated, and small.</b>
-        Ibovespa × NTN-B = +0.122 daily; LTN +0.134; NTN-F +0.147; LFT +0.005, indistinguishable from
-        zero. Brazilian bonds are diversifiers, not hedges.</p></li>
-      <li><span class="fno">2</span><p><b>Horizon dominates every other modelling choice.</b>
-        The correlation triples from +0.122 daily to +0.405 monthly. Cross-country comparisons must be
-        made at matched frequency.</p></li>
-      <li><span class="fno">3</span><p><b>There is a floor, not a regime shift.</b>
-        No regime shows a negative correlation and none is statistically distinguishable from the
-        calmest one. The post-2013 upward drift is suggestive, not established.</p></li>
-      <li><span class="fno">4</span><p><b>Most crisis spikes are volatility artefacts.</b>
-        After Forbes-Rigobon, the GFC, Americanas and Fiscal24 show no elevation; COVID's raw +0.370
-        falls to +0.124. Only Joesley Day is unambiguous contagion.</p></li>
-      <li><span class="fno">5</span><p><b>Time variation in the DCC is marginal.</b>
-        Only the LTN pair rejects a = 0 at 5% (t = 2.24); NTN-B falls just short at t = 1.94. The DCC
-        paths are reported as descriptive, not as evidence of an established time-varying process.</p></li>
-      <li><span class="fno">6</span><p><b>Co-crash risk is real in the daily tail, and asymmetric.</b>
-        Empirical lower-tail dependence of 0.143 against 0.050 under independence, exceeding the
-        upper-tail 0.094. Conditional on the worst decile of equity days, ρ doubles to +0.279.</p></li>
-      <li><span class="fno">7</span><p><b>Bonds nevertheless cushioned four of six crises.</b>
-        NTN-B returned +5.8pp over CDI in the GFC and +1.3pp in COVID. It underperformed cash only in
-        Joesley and Fiscal24 — both domestic fiscal-political shocks.</p></li>
-      <li><span class="fno">8</span><p><b>The LFT safe-haven claim is maturity-dependent.</b>
-        0.008% maximum drawdown for the 1-year over 21 years; 1.33% for the longest outstanding,
-        across 73 negative days.</p></li>
-      <li><span class="fno">9</span><p><b>Brazilian equities had a negative Sharpe ratio against CDI.</b>
-        9.30% annualised, 26% volatility, 60% maximum drawdown, against a cash rate that exceeded it.
-        This reframes what a domestic 60/40 portfolio is for.</p></li>
-    </ol>
-
-    <h3>What it implies for allocation</h3>
-    <p>The operative question is not whether domestic bonds hedge equities. They do not, and no
-      allocation within domestic fixed income will make them. It is whether the shock in prospect is
-      global or domestic-fiscal. <strong>Duration diversifies global risk-off episodes and amplifies
-      domestic fiscal-political ones</strong>, which makes the fiscal-regime indicator — primary
-      balance trajectory, sovereign spread trend — the allocation switch. Against a domestic fiscal
-      shock the hedges are short LFT and international assets; long LFT is not the risk-free
-      instrument it is usually assumed to be.</p>
-    <p>Against the IMF framework: at matched monthly frequency Brazil's +0.41 sits squarely in the
-      range reported for the post-2020 developed-market regime. Whether that constitutes convergence
-      is a question only a matched cross-country panel could answer, and this study does not attempt
-      one.</p>
-  </section>
-
-  <!-- ============ METHOD ============ -->
-  <section class="sec" id="method">
-    <p class="eyebrow">Reproduction</p>
-    <h2>How every number here was produced</h2>
-
-    <div class="method">
-      <h3>Data</h3>
-      <p>All sources are free and public. The master dataset holds 5,614 daily rows from 2 January
-        2004 to 23 July 2026; bond series begin 3 January 2005.</p>
-      <dl class="deflist">
-        <dt>Equities</dt><dd>Ibovespa daily close, IPEADATA <code>GM366_IBVSP366</code>.</dd>
-        <dt>Bonds</dt><dd>Constant-maturity total-return series from Tesouro Transparente daily unit
-          prices — 5y NTN-B, 2y LTN, 10y NTN-F, 1y and longest-outstanding LFT.</dd>
-        <dt>Macro</dt><dd>CDI, Selic, IPCA, IGP-M and PTAX from the BCB SGS API.</dd>
-        <dt>Sovereign</dt><dd>EMBI+ Brazil in basis points, IPEADATA <code>JPM366_EMBI366</code>, to
-          July 2024 when the series was discontinued.</dd>
-      </dl>
-
-      <h3>Two construction details that change the answer</h3>
-      <p><strong>Rolls never inject a price jump.</strong> The daily return is that of the bond
-        selected on the <em>previous</em> day, so a change in the selected maturity cannot register as
-        a return. <strong>Coupons are added back</strong> on payment dates, with the face or
-        inflation-updated VNA recovered from the bond's own quoted yield through a du/252 cashflow
-        pricer — validated on NTN-F, whose face is known to be R$1,000: it recovers 1,001.6. Left
-        untreated, a semiannual NTN-B coupon appears as a spurious one-day loss of about 2.9% of VNA,
-        roughly 42 times over the sample.</p>
-      <p>The LFT is built from <strong>observed Tesouro Selic prices, not compounded CDI</strong>.
-        As a validation check the 1-year LFT tracks independently sourced compounded CDI with a daily
-        correlation of 0.958 and an annualised gap of +0.14pp.</p>
-
-      <h3>Estimators</h3>
-      <p>Pearson correlations with Fisher-z 95% intervals throughout; regime differences by
-        stationary block bootstrap (21-day blocks, 1,500 replications). Forbes-Rigobon for crisis
-        windows. Engle (2002) two-stage DCC(1,1) with Student-t innovations and standard errors from
-        the numerical Hessian. Gaussian, Student-t, Clayton and Gumbel copulas fitted by maximum
-        likelihood and ranked by AIC, with each density unit-tested to integrate to 1 over the unit
-        square. Diversification Ratio, Effective Number of Bets and PC1 share on rolling 252-day
-        windows; CoVaR by quantile regression.</p>
-
-      <h3>Run it</h3>
-<pre>python3 -m venv .venv &amp;&amp; source .venv/bin/activate
-pip install -r requirements.txt
-
-python3 src/fetch.py              # rebuild the dataset, prints validation checks
-python3 -m pytest tests/ -q       # 77 tests: 28 estimator + 49 paper-consistency
-python3 scripts/run_analysis.py   # regenerate every table above -&gt; outputs/</pre>
-      <p style="margin-bottom:0">Forty-nine of those tests assert that every number quoted in the
-        paper matches the regenerated tables. Where a result is imprecise or fails a significance
-        test, it is reported that way rather than rounded into a conclusion.</p>
-
-      <h3>Limitations</h3>
-      <p style="margin-bottom:0">Bond series are constant-maturity constructions from Tesouro Direto
-        retail reference prices, not institutional secondary-market quotes; realised tenor deviates
-        from target by an average of 0.74 years for NTN-B and 1.11 years for NTN-F. Crisis windows are
-        researcher-defined, and the Joesley window is only 11 trading days, so any statistic from it
-        is imprecise. Regime boundaries come from political economy rather than being estimated —
-        given the bootstrap results, a Markov-switching estimate might well fail to find distinct
-        regimes at all. The global macro extension requires a FRED key and was not executed for this
-        version, so the real-policy-rate and news-sentiment claims from earlier drafts are treated as
-        open rather than established.</p>
-    </div>
-
-    <p class="endnote">Figures on this page are drawn from the tables in
-      <code>docs/04_final_paper.md</code>, which <code>scripts/run_analysis.py</code> regenerates from
-      public data. Charts show point estimates and, where the source table reports them, 95%
-      confidence intervals; no series has been smoothed or rescaled. Correlations are Pearson on
-      daily log returns unless a different frequency is stated.</p>
-  </section>
+  </div>
 
 </div>
 </div>
@@ -673,66 +322,10 @@ var REGIMES=[
  {k:"Current Cycle",yr:"2023–2026",n:888,r:0.109,lo:0.044,hi:0.174,d:0.073,se:0.057,p:0.207},
  {k:"Full sample",yr:"2005–2026",n:5338,r:0.122,lo:0.096,hi:0.149,d:null,se:null,p:null,full:true}
 ];
-var HORIZON=[
- {k:"NTN-B 5y",v:[0.122,0.335,0.405,0.421]},
- {k:"LTN 2y",v:[0.134,0.315,0.318,0.172]},
- {k:"NTN-F 10y",v:[0.147,0.395,0.473,0.377]},
- {k:"LFT 1y",v:[0.005,0.010,0.016,0.036]}
-];
-var HLAB=["Daily","Weekly","Monthly","Qtrly"];
-var CRISES=[
- {k:"GFC",n:145,raw:0.097,adj:0.033,vr:8.72,v:"interdependence"},
- {k:"Dilma",n:412,raw:0.107,adj:0.095,vr:1.29,v:"contagion"},
- {k:"Joesley",n:11,raw:0.843,adj:0.580,vr:4.84,v:"contagion"},
- {k:"COVID",n:88,raw:0.370,adj:0.124,vr:10.10,v:"contagion"},
- {k:"Americanas",n:117,raw:0.022,adj:0.027,vr:0.67,v:"interdependence"},
- {k:"Fiscal24",n:60,raw:0.055,adj:0.062,vr:0.78,v:"interdependence"}
-];
-var CALM=0.080;
-var TAIL=[
- {k:"Ibov × NTN-B 5y",lo:0.143,up:0.094,obs:38,fit:0.014,cop:"t (ρ=0.082, ν=9.3)"},
- {k:"Ibov × LTN 2y",lo:0.132,up:0.105,obs:35,fit:0.021,cop:"t (ρ=0.086, ν=8.2)"},
- {k:"Ibov × NTN-F 10y",lo:0.155,up:0.117,obs:41,fit:0.036,cop:"t (ρ=0.075, ν=6.6)"},
- {k:"Ibov × LFT 1y",lo:0.038,up:0.075,obs:10,fit:0.000,cop:"t (ρ=0.005, ν=43.2)"}
-];
-var CRISNAME=["GFC","Dilma","Joesley","COVID","Americanas","Fiscal24"];
-var EXCESS=[
- {k:"NTN-B 5y, excess of CDI",v:[5.8,4.4,-1.4,1.3,2.3,-3.1]},
- {k:"60/40 portfolio, excess of CDI",v:[-20.0,-3.2,-6.1,-11.8,1.1,-3.6]}
-];
-var VAR_ROWS=["60/40 (Ibov + NTN-B)","Diversified (4 assets)","Equity heavy (80/20)","Bond heavy (20/80)","LFT only (cash)"];
-var VAR_COLS=["Calm","GFC","Dilma","COVID","Americanas","Fiscal24"];
-var VAR_DATA=[
- [7.5,18.4,7.2,20.9,5.1,5.9],
- [5.1,12.4,4.9,14.4,3.5,4.2],
- [9.8,24.4,9.4,26.7,6.8,7.4],
- [3.1,6.7,3.2,9.1,2.0,3.6],
- [0.1,0.0,0.0,0.0,0.0,0.1]
-];
-var COND=[
- {k:"NTN-B 5y",f:0.122,q25:0.217,q10:0.279,ci:"[+0.198, +0.356]",d:0.156},
- {k:"LTN 2y",f:0.134,q25:0.187,q10:0.211,ci:"[+0.128, +0.292]",d:0.077},
- {k:"NTN-F 10y",f:0.147,q25:0.245,q10:0.294,ci:"[+0.214, +0.371]",d:0.148},
- {k:"LFT 1y",f:0.005,q25:0.011,q10:0.064,ci:"[−0.022, +0.149]",d:0.059}
-];
-var FULLCORR=[
- {k:"Ibovespa × NTN-B 5y",n:5338,r:0.122,ci:"[+0.096, +0.149]",p:"3.3e-19",s:"yes"},
- {k:"Ibovespa × LTN 2y",n:5338,r:0.134,ci:"[+0.108, +0.161]",p:"7.5e-23",s:"yes"},
- {k:"Ibovespa × NTN-F 10y",n:5310,r:0.147,ci:"[+0.120, +0.173]",p:"6.7e-27",s:"yes"},
- {k:"Ibovespa × LFT 1y",n:5335,r:0.005,ci:"[−0.022, +0.032]",p:"0.73",s:"no"}
-];
-var SUMSTATS=[
- {k:"Ibovespa",n:5614,ret:9.30,vol:26.32,sh:-0.07,sk:-0.40,ku:9.3,dd:-59.96},
- {k:"NTN-B 5y",n:5338,ret:11.40,vol:5.61,sh:0.10,sk:-1.61,ku:28.4,dd:-8.37},
- {k:"LTN 2y",n:5338,ret:11.14,vol:3.72,sh:0.08,sk:-1.26,ku:22.2,dd:-7.77},
- {k:"NTN-F 10y",n:5310,ret:11.43,vol:12.48,sh:0.05,sk:-1.38,ku:25.8,dd:-24.78},
- {k:"LFT 1y",n:5335,ret:10.36,vol:0.23,sh:-2.00,sk:0.21,ku:4.6,dd:-0.01}
-];
 
 /* ================= helpers ================= */
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function sg(v,d){d=d==null?3:d;return (v>0?"+":v<0?"−":"")+Math.abs(v).toFixed(d);}
-function pc(v,d){d=d==null?1:d;return (v>0?"+":v<0?"−":"")+Math.abs(v).toFixed(d);}
 function svgOpen(w,h,label){
   return '<svg class="chart" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="xMidYMid meet" '+
     'role="img" aria-label="'+esc(label)+'">';
@@ -741,7 +334,9 @@ function tick(v){return Math.abs(v)<1e-9?"0":(v>0?"":"−")+Math.abs(v).toFixed(
 
 /* ================= Fig 1 : forest plot ================= */
 function fig1(){
-  var W=780,H=372,ML=176,MR=74,MT=30,MB=44;
+  /* H is tuned so the seven rows sit at a ~36px band — enough for the two-line
+     row label, and ~50px shorter than a 42px band, which the one-pager needs. */
+  var W=780,H=326,ML=176,MR=74,MT=30,MB=44;
   var x0=-0.10,x1=0.34;
   var pw=W-ML-MR;
   var X=function(v){return ML+(v-x0)/(x1-x0)*pw;};
@@ -780,275 +375,33 @@ function fig1(){
   return s;
 }
 
-/* ================= Fig 2 : small multiples ================= */
-function fig2(){
-  var out="";
-  for(var i=0;i<HORIZON.length;i++){
-    var d=HORIZON[i];
-    var W=300,H=196,ML=38,MR=58,MT=30,MB=32;
-    var pw=W-ML-MR, ph=H-MT-MB, ymax=0.50;
-    var X=function(j){return ML+(pw/(HLAB.length-1))*j;};
-    var Y=function(v){return MT+ph-(v/ymax)*ph;};
-    var s=svgOpen(W,H,d.k+" correlation with Ibovespa across daily, weekly, monthly and quarterly frequencies.");
-    var gy=[0,0.1,0.2,0.3,0.4,0.5];
-    for(var g=0;g<gy.length;g++){
-      s+='<line class="grid" x1="'+ML+'" y1="'+Y(gy[g])+'" x2="'+(W-MR)+'" y2="'+Y(gy[g])+'"/>';
-      if(g%2===0) s+='<text class="ax" x="'+(ML-7)+'" y="'+(Y(gy[g])+4)+'" text-anchor="end">'+gy[g].toFixed(1)+'</text>';
-    }
-    s+='<line class="zero" x1="'+ML+'" y1="'+Y(0)+'" x2="'+(W-MR)+'" y2="'+Y(0)+'" stroke-width="1.5"/>';
-    s+='<text class="facet-t" x="'+ML+'" y="16">'+esc(d.k)+'</text>';
-    var pts=[];
-    for(var j=0;j<d.v.length;j++) pts.push(X(j)+","+Y(d.v[j]));
-    s+='<polyline points="'+pts.join(" ")+'" fill="none" stroke="var(--d1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-    for(j=0;j<d.v.length;j++){
-      s+='<circle cx="'+X(j)+'" cy="'+Y(d.v[j])+'" r="4" fill="var(--d1)" stroke="var(--panel)" stroke-width="2"/>';
-      s+='<text class="ax" x="'+X(j)+'" y="'+(H-MB+18)+'" text-anchor="middle">'+HLAB[j]+'</text>';
-      s+='<rect class="hit" x="'+(X(j)-18)+'" y="'+MT+'" width="36" height="'+ph+'" fill="transparent" data-tip="'+esc(d.k+" · "+HLAB[j]+"\nρ = "+sg(d.v[j]))+'"/>';
-    }
-    var last=d.v.length-1;
-    s+='<text class="val" x="'+(X(last)+9)+'" y="'+(Y(d.v[last])+4)+'" text-anchor="start">'+sg(d.v[last])+'</text>';
-    s+='</svg>';
-    out+='<div>'+s+'</div>';
-  }
-  return out;
-}
-
-/* ================= Fig 3 : dumbbell ================= */
-function fig3(){
-  var W=780,H=352,ML=160,MR=296,MT=34,MB=46;
-  var x0=0,x1=0.90,pw=W-ML-MR;
-  var X=function(v){return ML+(v-x0)/(x1-x0)*pw;};
-  var rows=CRISES.length,band=(H-MT-MB)/rows;
-  var s=svgOpen(W,H,"Raw versus Forbes-Rigobon volatility-adjusted crisis correlations for six Brazilian episodes.");
-  var ticks=[0,0.2,0.4,0.6,0.8];
-  for(var i=0;i<ticks.length;i++){
-    s+='<line class="grid" x1="'+X(ticks[i])+'" y1="'+MT+'" x2="'+X(ticks[i])+'" y2="'+(H-MB)+'"/>';
-    s+='<text class="ax" x="'+X(ticks[i])+'" y="'+(H-MB+20)+'" text-anchor="middle">'+ticks[i].toFixed(1)+'</text>';
-  }
-  s+='<line x1="'+X(CALM)+'" y1="'+(MT-8)+'" x2="'+X(CALM)+'" y2="'+(H-MB)+'" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="0"/>';
-  s+='<text class="ax" x="'+(X(CALM)+6)+'" y="'+(MT-13)+'" text-anchor="start" style="fill:var(--ink)">calm-period ρ 0.080</text>';
-  for(i=0;i<rows;i++){
-    var d=CRISES[i],cy=MT+band*i+band/2;
-    s+='<text class="cat" x="'+(ML-14)+'" y="'+(cy-1)+'" text-anchor="end">'+esc(d.k)+'</text>';
-    s+='<text class="ax" x="'+(ML-14)+'" y="'+(cy+13)+'" text-anchor="end">n '+d.n+' · vol '+d.vr.toFixed(2)+'×</text>';
-    var xa=X(d.adj),xr=X(d.raw);
-    s+='<line x1="'+Math.min(xa,xr)+'" y1="'+cy+'" x2="'+Math.max(xa,xr)+'" y2="'+cy+'" stroke="var(--rule)" stroke-width="2" stroke-linecap="round"/>';
-    s+='<circle cx="'+xr+'" cy="'+cy+'" r="5.5" fill="var(--d2)" stroke="var(--panel)" stroke-width="2"/>';
-    s+='<circle cx="'+xa+'" cy="'+cy+'" r="5.5" fill="var(--d1)" stroke="var(--panel)" stroke-width="2"/>';
-    s+='<text class="val" x="604" y="'+(cy+4)+'" text-anchor="end">'+sg(d.raw)+' → '+sg(d.adj)+'</text>';
-    var chipX=622,chipW=132,on=(d.v==="contagion");
-    s+='<rect x="'+chipX+'" y="'+(cy-10)+'" width="'+chipW+'" height="20" fill="none" stroke="'+(on?"var(--d2)":"var(--rule)")+'" stroke-width="1"/>';
-    s+='<text class="ax" x="'+(chipX+chipW/2)+'" y="'+(cy+4)+'" text-anchor="middle" style="fill:'+(on?"var(--ink)":"var(--ink-3)")+';letter-spacing:.06em">'+d.v+'</text>';
-    s+='<rect class="hit" x="'+ML+'" y="'+(MT+band*i)+'" width="'+(chipX-8-ML)+'" height="'+band+'" fill="transparent" data-tip="'+
-      esc(d.k+"\nraw ρ = "+sg(d.raw)+"\nadjusted ρ* = "+sg(d.adj)+"\nequity vol ratio "+d.vr.toFixed(2)+"×\nn = "+d.n+" days\nverdict: "+d.v)+'"/>';
-  }
-  s+='</svg>';
-  return '<div class="legend"><span><i class="dot" style="background:var(--d2)"></i>Raw, as measured in the window</span>'+
-    '<span><i class="dot" style="background:var(--d1)"></i>Forbes-Rigobon adjusted</span>'+
-    '<span><i style="background:var(--ink);height:2px"></i>Calm-period baseline</span></div>'+s;
-}
-
-/* ================= Fig 4 : grouped columns ================= */
-function fig4(){
-  var W=780,H=312,ML=52,MR=26,MT=34,MB=56;
-  var pw=W-ML-MR,ph=H-MT-MB,ymax=0.18;
-  var Y=function(v){return MT+ph-(v/ymax)*ph;};
-  var groups=TAIL.length,gw=pw/groups,bw=Math.min(24,gw/3.2);
-  var s=svgOpen(W,H,"Empirical lower and upper tail dependence at the five percent threshold for four Ibovespa-bond pairs.");
-  var gy=[0,0.05,0.10,0.15];
-  for(var g=0;g<gy.length;g++){
-    s+='<line class="grid" x1="'+ML+'" y1="'+Y(gy[g])+'" x2="'+(W-MR)+'" y2="'+Y(gy[g])+'"/>';
-    s+='<text class="ax" x="'+(ML-8)+'" y="'+(Y(gy[g])+4)+'" text-anchor="end">'+gy[g].toFixed(2)+'</text>';
-  }
-  s+='<line x1="'+ML+'" y1="'+Y(0.05)+'" x2="'+(W-MR)+'" y2="'+Y(0.05)+'" stroke="var(--ink)" stroke-width="1.5"/>';
-  s+='<line class="zero" x1="'+ML+'" y1="'+Y(0)+'" x2="'+(W-MR)+'" y2="'+Y(0)+'"/>';
-  for(var i=0;i<groups;i++){
-    var d=TAIL[i],cx=ML+gw*i+gw/2;
-    var pairs=[{v:d.lo,c:"var(--d1)",n:"Lower tail"},{v:d.up,c:"var(--d2)",n:"Upper tail"}];
-    for(var j=0;j<2;j++){
-      var bx=cx-bw-1+(j*(bw+2));
-      var by=Y(pairs[j].v),bh=Y(0)-by;
-      s+='<path d="M'+bx+' '+Y(0)+' L'+bx+' '+(by+4)+' Q'+bx+' '+by+' '+(bx+4)+' '+by+
-         ' L'+(bx+bw-4)+' '+by+' Q'+(bx+bw)+' '+by+' '+(bx+bw)+' '+(by+4)+' L'+(bx+bw)+' '+Y(0)+' Z" fill="'+pairs[j].c+'"/>';
-      s+='<text class="val" x="'+(bx+bw/2)+'" y="'+(by-8)+'" text-anchor="middle">'+pairs[j].v.toFixed(3)+'</text>';
-      s+='<rect class="hit" x="'+bx+'" y="'+MT+'" width="'+bw+'" height="'+(Y(0)-MT)+'" fill="transparent" data-tip="'+
-        esc(d.k+"\n"+pairs[j].n+" dependence = "+pairs[j].v.toFixed(3)+"\nbest copula fit: "+d.cop+"\nco-crash observations: "+d.obs+" vs 13 expected")+'"/>';
-    }
-    s+='<text class="ax" x="'+cx+'" y="'+(H-MB+20)+'" text-anchor="middle" style="fill:var(--ink)">'+esc(d.k)+'</text>';
-    s+='<text class="ax" x="'+cx+'" y="'+(H-MB+36)+'" text-anchor="middle">'+d.obs+' co-crashes</text>';
-  }
-  s+='</svg>';
-  return '<div class="legend"><span><i style="background:var(--d1)"></i>Lower tail — both in worst 5%</span>'+
-    '<span><i style="background:var(--d2)"></i>Upper tail — both in best 5%</span>'+
-    '<span><i style="background:var(--ink);height:2px"></i>Independence benchmark 0.050</span></div>'+s;
-}
-
-/* ================= Fig 5 : diverging bars ================= */
-function fig5(){
-  var out="";
-  for(var i=0;i<EXCESS.length;i++){
-    var d=EXCESS[i];
-    var W=380,H=268,ML=118,MR=44,MT=32,MB=28;
-    var pw=W-ML-MR,ph=H-MT-MB;
-    var lo=-23,hi=9;
-    var X=function(v){return ML+(v-lo)/(hi-lo)*pw;};
-    var rows=CRISNAME.length,band=ph/rows,bh=Math.min(22,band*0.56);
-    var s=svgOpen(W,H,d.k+" by crisis episode, percentage points over CDI.");
-    s+='<text class="facet-t" x="2" y="14">'+esc(d.k)+'</text>';
-    var ticks=[-20,-10,0];
-    for(var t=0;t<ticks.length;t++){
-      if(ticks[t]!==0){
-        s+='<line class="grid" x1="'+X(ticks[t])+'" y1="'+MT+'" x2="'+X(ticks[t])+'" y2="'+(H-MB)+'"/>';
-        s+='<text class="ax" x="'+X(ticks[t])+'" y="'+(H-MB+18)+'" text-anchor="middle">'+String(ticks[t]).replace("-","−")+'</text>';
-      }
-    }
-    s+='<line class="zero" x1="'+X(0)+'" y1="'+(MT-4)+'" x2="'+X(0)+'" y2="'+(H-MB+4)+'"/>';
-    s+='<text class="ax" x="'+X(0)+'" y="'+(H-MB+18)+'" text-anchor="middle" style="fill:var(--ink)">0</text>';
-    for(var j=0;j<rows;j++){
-      var v=d.v[j],cy=MT+band*j+band/2,pos=v>=0;
-      var col=pos?"var(--d1)":"var(--neg)";
-      var xa=X(Math.min(0,v)),xb=X(Math.max(0,v)),w=Math.max(xb-xa,1.5);
-      var by=cy-bh/2,r=4;
-      /* rounded on the data end only */
-      var p = pos
-        ? 'M'+xa+' '+by+' L'+(xb-r)+' '+by+' Q'+xb+' '+by+' '+xb+' '+(by+r)+' L'+xb+' '+(by+bh-r)+' Q'+xb+' '+(by+bh)+' '+(xb-r)+' '+(by+bh)+' L'+xa+' '+(by+bh)+' Z'
-        : 'M'+xb+' '+by+' L'+(xa+r)+' '+by+' Q'+xa+' '+by+' '+xa+' '+(by+r)+' L'+xa+' '+(by+bh-r)+' Q'+xa+' '+(by+bh)+' '+(xa+r)+' '+(by+bh)+' L'+xb+' '+(by+bh)+' Z';
-      s+='<path d="'+p+'" fill="'+col+'"/>';
-      s+='<text class="cat" x="2" y="'+(cy+4)+'" text-anchor="start" style="font-size:11.5px">'+CRISNAME[j]+'</text>';
-      var tx=pos?(xb+7):(xa-7);
-      s+='<text class="val" x="'+tx+'" y="'+(cy+4)+'" text-anchor="'+(pos?"start":"end")+'">'+pc(v)+'</text>';
-      s+='<rect class="hit" x="0" y="'+(MT+band*j)+'" width="'+W+'" height="'+band+'" fill="transparent" data-tip="'+
-        esc(d.k+"\n"+CRISNAME[j]+": "+pc(v)+" pp over CDI")+'"/>';
-    }
-    s+='</svg>';
-    out+='<div>'+s+'</div>';
-  }
-  return '<div class="legend"><span><i style="background:var(--d1)"></i>Beat cash (positive excess)</span>'+
-    '<span><i style="background:var(--neg)"></i>Lagged cash (negative excess)</span></div>'+
-    '<div class="grid-multiples">'+out+'</div>';
-}
-
-/* ================= Fig 6 : heatmap ================= */
-function fig6(){
-  var W=780,ML=176,MR=16,MT=48,cellH=42,gap=2;
-  var rows=VAR_DATA.length,cols=VAR_COLS.length;
-  var H=MT+rows*cellH+18;
-  var cw=(W-ML-MR)/cols;
-  var steps=["var(--seq1)","var(--seq2)","var(--seq3)","var(--seq4)","var(--seq5)"];
-  var stepInk=["var(--sqt1)","var(--sqt2)","var(--sqt3)","var(--sqt4)","var(--sqt5)"];
-  var bounds=[1,5,10,18];
-  function stepIdx(v){var k=0;for(var i=0;i<bounds.length;i++){if(v>=bounds[i])k=i+1;}return k;}
-  var s=svgOpen(W,H,"Ninety-nine percent ten-day Gaussian value at risk as a percent of capital, by portfolio and volatility regime.");
-  for(var c=0;c<cols;c++){
-    s+='<text class="ax" x="'+(ML+cw*c+cw/2)+'" y="'+(MT-14)+'" text-anchor="middle" style="fill:var(--ink)">'+VAR_COLS[c]+'</text>';
-  }
-  for(var r=0;r<rows;r++){
-    var cy=MT+cellH*r;
-    s+='<text class="cat" x="'+(ML-14)+'" y="'+(cy+cellH/2+4)+'" text-anchor="end">'+esc(VAR_ROWS[r])+'</text>';
-    for(c=0;c<cols;c++){
-      var v=VAR_DATA[r][c],k=stepIdx(v);
-      var x=ML+cw*c;
-      s+='<rect x="'+(x+gap/2)+'" y="'+(cy+gap/2)+'" width="'+(cw-gap)+'" height="'+(cellH-gap)+'" fill="'+steps[k]+'"/>';
-      s+='<text class="val oncell" x="'+(x+cw/2)+'" y="'+(cy+cellH/2+4)+'" text-anchor="middle" style="fill:'+stepInk[k]+'">'+v.toFixed(1)+'</text>';
-      s+='<rect class="hit" x="'+x+'" y="'+cy+'" width="'+cw+'" height="'+cellH+'" fill="transparent" data-tip="'+
-        esc(VAR_ROWS[r]+"\n"+VAR_COLS[c]+" regime\n99% 10-day VaR = "+v.toFixed(1)+"% of capital")+'"/>';
-    }
-  }
-  s+='</svg>';
-  var lg='<div class="legend"><span style="letter-spacing:.06em">VaR, % of capital</span>';
-  var labs=["&lt;1","1–5","5–10","10–18","≥18"];
-  for(var i=0;i<steps.length;i++) lg+='<span><i style="background:'+steps[i]+';width:16px;height:10px;border-radius:1px"></i>'+labs[i]+'</span>';
-  lg+='</div>';
-  return lg+s;
-}
-
-/* ================= tables ================= */
-function tbl(head,rows,cls){
-  var s='<table'+(cls?' class="'+cls+'"':'')+'><thead><tr>';
+/* ================= table ================= */
+function tbl(head,rows){
+  var s='<table><thead><tr>';
   for(var i=0;i<head.length;i++) s+='<th scope="col">'+head[i]+'</th>';
   s+='</tr></thead><tbody>';
   for(var r=0;r<rows.length;r++){
-    var row=rows[r],emph=row.emph;
-    s+='<tr'+(emph?' class="emph"':'')+'>';
+    var row=rows[r];
+    s+='<tr'+(row.emph?' class="emph"':'')+'>';
     for(var c=0;c<row.cells.length;c++) s+='<td>'+row.cells[c]+'</td>';
     s+='</tr>';
   }
   return s+'</tbody></table>';
 }
-function signCell(v,d){
-  var t=sg(v,d==null?3:d);
-  return '<span class="'+(v>=0?"num-pos":"num-neg")+'">'+t+'</span>';
-}
-function pctCell(v){
-  return '<span class="'+(v>=0?"num-pos":"num-neg")+'">'+pc(v)+'</span>';
-}
-
-function buildTables(){
-  document.getElementById("t1").innerHTML=tbl(
-    ["Regime","n","ρ","95% CI","Δ vs Lula Boom","Bootstrap SE","p"],
-    REGIMES.map(function(d){return{emph:!!d.full,cells:[
-      esc(d.k)+' <span style="color:var(--ink-3)">'+d.yr+'</span>',
-      d.n.toLocaleString("en-US"),sg(d.r),"["+sg(d.lo)+", "+sg(d.hi)+"]",
-      d.d==null?"—":sg(d.d),d.se==null?"—":d.se.toFixed(3),d.p==null?"—":d.p.toFixed(3)
-    ]};}));
-
-  document.getElementById("t2").innerHTML=tbl(
-    ["Bond","Daily","Weekly","Monthly","Quarterly"],
-    HORIZON.map(function(d){return{cells:[esc(d.k)].concat(d.v.map(function(v){return sg(v);}))};}));
-
-  document.getElementById("t3").innerHTML=tbl(
-    ["Crisis","n","ρ calm","ρ raw","Equity vol ratio","ρ adjusted","Verdict"],
-    CRISES.map(function(d){return{cells:[
-      esc(d.k),d.n,CALM.toFixed(3),sg(d.raw),d.vr.toFixed(2)+"×",sg(d.adj),d.v
-    ]};}));
-
-  document.getElementById("t4").innerHTML=tbl(
-    ["Pair","Best fit","λ_L fitted","λ_L empirical","λ_U empirical","Co-crash obs","Expected if independent"],
-    TAIL.map(function(d){return{cells:[
-      esc(d.k),esc(d.cop),d.fit.toFixed(3),d.lo.toFixed(3),d.up.toFixed(3),d.obs,13
-    ]};}));
-
-  document.getElementById("t5").innerHTML=tbl(
-    ["Series"].concat(CRISNAME),
-    EXCESS.map(function(d){return{cells:[esc(d.k)].concat(d.v.map(pctCell))};}));
-
-  document.getElementById("t6").innerHTML=tbl(
-    ["Portfolio"].concat(VAR_COLS),
-    VAR_ROWS.map(function(k,i){return{cells:[esc(k)].concat(VAR_DATA[i].map(function(v){return v.toFixed(1);}))};}));
-
-  document.getElementById("tA").innerHTML=tbl(
-    ["Bond","ρ full","ρ | Ibov &lt; Q25","ρ | Ibov &lt; Q10","95% CI (Q10)","Δ vs full"],
-    COND.map(function(d){return{emph:d.k==="NTN-B 5y",cells:[
-      esc(d.k),sg(d.f),sg(d.q25),sg(d.q10),d.ci,sg(d.d)
-    ]};}));
-
-  document.getElementById("tB").innerHTML=tbl(
-    ["Pair","n","ρ","95% CI","p","Significant at 5%"],
-    FULLCORR.map(function(d){return{emph:d.k.indexOf("NTN-B")>-1,cells:[
-      esc(d.k),d.n.toLocaleString("en-US"),sg(d.r),d.ci,d.p,d.s
-    ]};}));
-
-  document.getElementById("tC").innerHTML=tbl(
-    ["Asset","Obs","Ann. return","Ann. vol","Sharpe vs CDI","Skew","Excess kurtosis","Max drawdown"],
-    SUMSTATS.map(function(d){return{cells:[
-      esc(d.k),d.n.toLocaleString("en-US"),d.ret.toFixed(2)+"%",d.vol.toFixed(2)+"%",
-      signCell(d.sh,2),sg(d.sk,2),d.ku.toFixed(1),
-      '<span class="num-neg">'+d.dd.toFixed(2)+'%</span>'
-    ]};}));
-}
 
 /* ================= mount ================= */
-var doc=document.querySelector(".doc");
-if(doc) doc.classList.add("js-rv");
+var root=document.querySelector(".onepager");
+if(root) root.classList.add("js-rv");
 document.getElementById("c1").innerHTML=fig1();
-document.getElementById("c2").innerHTML=fig2();
-document.getElementById("c3").innerHTML=fig3();
-document.getElementById("c4").innerHTML=fig4();
-document.getElementById("c5").innerHTML=fig5();
-document.getElementById("c6").innerHTML=fig6();
-buildTables();
+document.getElementById("t1").innerHTML=tbl(
+  ["Regime","n","ρ","95% CI","Δ vs Lula Boom","Bootstrap SE","p"],
+  REGIMES.map(function(d){return{emph:!!d.full,cells:[
+    esc(d.k)+' <span style="color:var(--ink-3)">'+d.yr+'</span>',
+    d.n.toLocaleString("en-US"),sg(d.r),"["+sg(d.lo)+", "+sg(d.hi)+"]",
+    d.d==null?"—":sg(d.d),d.se==null?"—":d.se.toFixed(3),d.p==null?"—":d.p.toFixed(3)
+  ]};}));
 
-/* ===== tell the reader when a chart is wider than its frame ===== */
+/* ===== tell the reader when the chart is wider than its frame ===== */
 function markScroll(){
   var bodies=document.querySelectorAll(".plate-body");
   for(var i=0;i<bodies.length;i++){
@@ -1065,7 +418,7 @@ function markScroll(){
 markScroll();
 window.addEventListener("resize",markScroll);
 
-/* ================= table toggles ================= */
+/* ================= table toggle ================= */
 var btns=document.querySelectorAll(".tbl-btn");
 for(var b=0;b<btns.length;b++){
   (function(btn){
@@ -1076,6 +429,7 @@ for(var b=0;b<btns.length;b++){
       var open=target.classList.toggle("open");
       btn.setAttribute("aria-expanded",open?"true":"false");
       btn.textContent=open?"Hide table":"Table";
+      markScroll();
     });
   })(btns[b]);
 }
