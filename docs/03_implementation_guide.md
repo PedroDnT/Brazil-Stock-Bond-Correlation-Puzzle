@@ -34,7 +34,7 @@ project/
 │   ├── run_analysis.py          # Sections 4-8 -> outputs/tbl_*.csv
 │   ├── run_global_analysis.py   # Section 9    -> outputs/tbl_global_*.csv
 │   └── build_notebooks.py       # generates notebooks 01-08
-├── config/plot_style.py         # shared matplotlib rcParams (apply_style())
+├── .github/workflows/tests.yml  # CI: the 48 estimator tests on every push and PR
 └── outputs/          # All charts/tables for the paper
 ```
 

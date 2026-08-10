@@ -11,5 +11,3 @@ nbformat
 nbconvert
 ipykernel
 pytest
-vaderSentiment
-python-dotenv

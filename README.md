@@ -34,6 +34,10 @@ for nb in 01_data 02_descriptive 03_rolling_corr 04_dcc_garch 05_copula 06_portf
 done
 ```
 
+CI runs the 48 estimator tests on every push and pull request. The 79 consistency
+tests are not in CI: they read `outputs/`, which is gitignored and regenerates from
+live BCB, IPEADATA, Tesouro and FRED calls, so they run locally after step 1.
+
 ## Data sources (all free, all public)
 
 | Series | Source | Identifier |
@@ -127,6 +131,8 @@ and regenerate from source.
 ## Project structure
 
 ```
+.github/workflows/
+  tests.yml               # CI: the 48 estimator tests
 src/
   fetch.py                # Brazilian data (BCB, IPEADATA, Tesouro) + validation
   global_data.py          # Matched cross-country panel (FRED, keyless) + validation
@@ -149,7 +155,7 @@ notebooks/
   07_stress_test.ipynb    # Historical scenarios & stressed VaR
   08_global_macro.ipynb   # Matched cross-country panel; the convergence test
 docs/                     # Research series (see above)
-config/plot_style.py      # Shared matplotlib style
+site/                     # Static web version of the paper (build.py + template)
 data/                     # Cached raw & processed data (gitignored)
 outputs/                  # Figures (.png) and tables (.csv) (gitignored)
 ```
