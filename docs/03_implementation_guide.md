@@ -29,9 +29,9 @@ project/
 │   ├── test_metrics.py           # 31 tests: the estimators
 │   ├── test_global_data.py       # 17 tests: cross-country bond construction
 │   ├── test_sovereign.py         # 12 tests: sovereign series + the ffill guard
-│   ├── test_docs.py              # 13 tests: docs match the pipeline that exists
+│   ├── test_docs.py              # 18 tests: docs match the pipeline that exists
 │   └── test_paper_consistency.py # 91 tests: paper + README numbers vs outputs/
-├── .github/workflows/tests.yml   # CI: the 73 network-free tests
+├── .github/workflows/tests.yml   # CI: the 78 network-free tests
 ├── site/              # static web version of the paper
 └── outputs/           # figures (.png) and tables (.csv), gitignored
 ```
@@ -47,7 +47,7 @@ pip install -r requirements.txt
 python3 src/fetch.py                     # ~3 min, prints validation
 python3 scripts/run_analysis.py
 python3 scripts/run_global_analysis.py
-python3 -m pytest tests/ -q              # 164 tests
+python3 -m pytest tests/ -q              # 169 tests
 ```
 
 No API key is required at any stage.

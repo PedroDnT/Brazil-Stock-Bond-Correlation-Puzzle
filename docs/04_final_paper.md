@@ -628,7 +628,7 @@ pip install -r requirements.txt
 python3 src/fetch.py                     # rebuild the Brazilian dataset (prints checks)
 python3 scripts/run_analysis.py          # Sections 4-8, 6.1 -> outputs/tbl_*.csv
 python3 scripts/run_global_analysis.py   # Section 9     -> outputs/tbl_global_*.csv
-python3 -m pytest tests/ -q              # 164 tests: 73 network-free + 91 paper-consistency
+python3 -m pytest tests/ -q              # 169 tests: 78 network-free + 91 paper-consistency
 ```
 
 | Section | Table | Output file |

@@ -23,7 +23,7 @@ python3 src/fetch.py
 python3 scripts/run_analysis.py          # Sections 4-8  (Brazil)
 python3 scripts/run_global_analysis.py   # Section 9     (cross-country panel)
 
-# 3. Verify: 164 tests, 91 of which pin the paper's and README's numbers to the tables
+# 3. Verify: 169 tests, 91 of which pin the paper's and README's numbers to the tables
 python3 -m pytest tests/ -q
 
 # 4. (optional) Generate and execute the notebooks for the figures
@@ -34,7 +34,7 @@ for nb in 01_data 02_descriptive 03_rolling_corr 04_dcc_garch 05_copula 06_portf
 done
 ```
 
-CI runs the 73 network-free tests on every push and pull request. The 91 consistency
+CI runs the 78 network-free tests on every push and pull request. The 91 consistency
 tests are not in CI: they read `outputs/`, which is
 gitignored and regenerates from live BCB, IPEADATA, Tesouro and FRED calls, so they
 run locally after step 1.
@@ -165,7 +165,7 @@ its expectations were revised by what the study actually found.
 
 ```
 .github/workflows/
-  tests.yml               # CI: the 73 network-free tests
+  tests.yml               # CI: the 78 network-free tests
 src/
   fetch.py                # Brazilian data (BCB, IPEADATA, Tesouro) + validation
   global_data.py          # Matched cross-country panel (FRED, keyless) + validation
@@ -174,7 +174,7 @@ tests/
   test_metrics.py             # 31 unit tests for the estimators
   test_global_data.py         # 17 tests for the bond construction and retry logic
   test_sovereign.py           # 12 tests for the sovereign series and the ffill guard
-  test_docs.py                # 13 tests: the docs describe the pipeline that exists
+  test_docs.py                # 18 tests: the docs describe the pipeline that exists
   test_paper_consistency.py   # 91 tests: every number in the paper and README vs outputs/
 scripts/
   run_analysis.py         # Sections 4-8 -> outputs/tbl_*.csv

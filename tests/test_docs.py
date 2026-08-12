@@ -182,3 +182,29 @@ def test_the_per_file_counts_in_the_trees_are_real():
             assert m, f"{path.name}: no count beside {stem}"
             assert int(m.group(1)) == n, \
                 f"{path.name} says {m.group(1)} tests for {stem}, actual {n}"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Gitignored paths must not be tracked
+# ═════════════════════════════════════════════════════════════════════════════
+# These have been removed twice and re-added by tooling each time, silently,
+# because .gitignore does not stop a `git add -f`. A failing build is the only
+# signal that survives an automated re-add.
+IGNORED_DIRS = [".claude", ".codex", ".agents", ".vscode"]
+
+
+def test_gitignored_agent_configs_are_not_tracked():
+    listed = subprocess.run(["git", "ls-files", *IGNORED_DIRS],
+                            capture_output=True, text=True, cwd=BASE)
+    if listed.returncode != 0:
+        pytest.skip("not a git checkout")
+    tracked = [f for f in listed.stdout.split() if f]
+    assert not tracked, (
+        "these paths are in .gitignore but tracked anyway — something force-added "
+        f"them:\n  " + "\n  ".join(tracked))
+
+
+@pytest.mark.parametrize("directory", IGNORED_DIRS)
+def test_gitignore_still_lists_the_agent_config_dirs(directory):
+    """The guard above is only meaningful while .gitignore still excludes them."""
+    assert f"{directory}/" in _doc(BASE / ".gitignore"), directory
