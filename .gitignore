@@ -28,6 +28,9 @@ outputs/
 # Jupyter
 .ipynb_checkpoints/
 
+# Test cache
+.pytest_cache/
+
 # Tool artifacts
 .paper-refs.json
 .vscode/paper-cache.json
