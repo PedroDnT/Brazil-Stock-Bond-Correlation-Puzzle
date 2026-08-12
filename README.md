@@ -23,7 +23,7 @@ python3 src/fetch.py
 python3 scripts/run_analysis.py          # Sections 4-8  (Brazil)
 python3 scripts/run_global_analysis.py   # Section 9     (cross-country panel)
 
-# 3. Verify: 155 tests, 84 of which pin the paper's and README's numbers to the tables
+# 3. Verify: 169 tests, 91 of which pin the paper's and README's numbers to the tables
 python3 -m pytest tests/ -q
 
 # 4. (optional) Generate and execute the notebooks for the figures
@@ -34,7 +34,7 @@ for nb in 01_data 02_descriptive 03_rolling_corr 04_dcc_garch 05_copula 06_portf
 done
 ```
 
-CI runs the 71 network-free tests on every push and pull request. The 84 consistency
+CI runs the 78 network-free tests on every push and pull request. The 91 consistency
 tests are not in CI: they read `outputs/`, which is
 gitignored and regenerates from live BCB, IPEADATA, Tesouro and FRED calls, so they
 run locally after step 1.
@@ -85,7 +85,7 @@ the one country where a unit-price construction is also available, and the two a
 | Ibovespa × NTN-B, **monthly** | ρ = +0.405 — the horizon triples the estimate |
 | Lowest regime correlation (Lula Boom) | ρ = +0.037 [−0.036, +0.108] — not negative, not significant |
 | Regimes statistically distinguishable from each other | **none** (all bootstrap p > 0.05) |
-| ρ conditional on worst decile of equity days | +0.280 [+0.199, +0.357] |
+| ρ conditional on worst decile of equity days | +0.280 [+0.198, +0.357] |
 | Empirical lower-tail dependence (5%) | 0.143 vs 0.050 under independence (38 co-crashes vs 13.3) |
 | COVID crisis ρ, raw → Forbes-Rigobon adjusted | +0.370 → +0.124 |
 | Joesley Day ρ, raw → adjusted | +0.843 → +0.580 (the one real contagion episode) |
@@ -138,6 +138,7 @@ the paper's own Limitations paragraph covers the same ground for a reader.
 | **Convergence is a direction, not a result** | 4 of 4 narrowed, 1 of 4 significantly. Four correlated bond markets are ~1–2 independent observations. |
 | **Bonds are retail reference prices** | Tesouro Direto, not ANBIMA institutional quotes. Realised tenor drifts 0.74y (NTN-B) / 1.11y (NTN-F). |
 | **Three earlier-draft claims stay unreproduced** | Real policy rate vs G7, real-rate convergence, news sentiment — they rested on a notebook that had never run. See §9.5. |
+| **Documents 01 and 02 predate the results** | Background, not findings — each carries a header listing where the study revised it. |
 | **The 84 consistency tests are not in CI** | They need generated `outputs/`, i.e. live network calls. Closing this means committing a pinned data snapshot. |
 
 ## Outputs
@@ -164,7 +165,7 @@ its expectations were revised by what the study actually found.
 
 ```
 .github/workflows/
-  tests.yml               # CI: the 71 network-free tests
+  tests.yml               # CI: the 78 network-free tests
 src/
   fetch.py                # Brazilian data (BCB, IPEADATA, Tesouro) + validation
   global_data.py          # Matched cross-country panel (FRED, keyless) + validation
@@ -173,8 +174,8 @@ tests/
   test_metrics.py             # 31 unit tests for the estimators
   test_global_data.py         # 17 tests for the bond construction and retry logic
   test_sovereign.py           # 12 tests for the sovereign series and the ffill guard
-  test_docs.py                # 11 tests: the docs describe the pipeline that exists
-  test_paper_consistency.py   # 84 tests: every number in the paper and README vs outputs/
+  test_docs.py                # 18 tests: the docs describe the pipeline that exists
+  test_paper_consistency.py   # 91 tests: every number in the paper and README vs outputs/
 scripts/
   run_analysis.py         # Sections 4-8 -> outputs/tbl_*.csv
   run_global_analysis.py  # Section 9    -> outputs/tbl_global_*.csv

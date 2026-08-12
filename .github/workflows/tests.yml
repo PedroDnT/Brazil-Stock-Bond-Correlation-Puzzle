@@ -18,11 +18,12 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # Only the estimator, ingestion and documentation tests run here; 7 of the 71
-      # skip because they read a built dataset. tests/test_paper_consistency.py checks
-      # every number in the paper and README against outputs/, which is gitignored and
-      # regenerates from live BCB, IPEADATA, Tesouro and FRED calls -- too slow and
-      # too flaky for CI. Run it locally after `python3 src/fetch.py`.
+      # Only the network-free tests run here. The paper-consistency suite checks
+      # every number in the paper and README against outputs/, which is gitignored
+      # and regenerates from live BCB, IPEADATA, Tesouro and FRED calls -- too slow
+      # and too flaky for CI. Run it locally after `python3 src/fetch.py`.
+      # A handful of tests here skip without a built dataset; that count is not
+      # quoted, because a number nobody acts on is a number that goes stale.
       - run: |
           python3 -m pytest tests/test_metrics.py tests/test_global_data.py \
                             tests/test_sovereign.py tests/test_docs.py -q

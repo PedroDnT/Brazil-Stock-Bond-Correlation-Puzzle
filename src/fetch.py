@@ -117,9 +117,6 @@ REGIMES = {
     "Current Cycle":       ("2023-01-01", "2026-06-30"),
 }
 
-RETURN_COLS = ["ibov", "ntnb", "ltn", "ntnf", "lft"]
-
-
 # ═════════════════════════════════════════════════════════════════════════════
 # BCB SGS
 # ═════════════════════════════════════════════════════════════════════════════
@@ -592,8 +589,6 @@ def validate_master(master, verbose=True):
         for f in fails:
             print(f"    - {f}")
     return fails
-
-
 
 
 if __name__ == "__main__":

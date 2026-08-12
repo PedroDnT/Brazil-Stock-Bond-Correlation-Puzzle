@@ -22,18 +22,32 @@ def _stable_ids(notebook, name):
     """
     nbformat assigns a random id to every cell, so regenerating unchanged notebooks
     produced an 8-file diff of nothing but ids -- which buries real changes. Derive
-    the id from the notebook name, the cell's position and its source instead, so
-    the output is a pure function of the input.
+    the id from the cell's own content instead, so the output is a pure function of
+    the input.
+
+    Deliberately NOT hashing the cell's position: that would re-id every cell below
+    an insertion, which is the same whole-file diff in a different disguise. Exact
+    duplicates get an occurrence counter, because nbformat does not fail on a
+    duplicate id -- it warns and substitutes a random one, silently reinstating the
+    churn.
     """
-    for i, cell in enumerate(notebook.cells):
-        digest = hashlib.sha256(f"{name}:{i}:{cell.source}".encode()).hexdigest()
-        cell.id = digest[:8]
+    seen = {}
+    for cell in notebook.cells:
+        key = f"{name}:{cell.cell_type}:{cell.source}"
+        n = seen.get(key, 0)
+        seen[key] = n + 1
+        cell.id = hashlib.sha256(f"{key}:{n}".encode()).hexdigest()[:16]
+    ids = [c.id for c in notebook.cells]
+    assert len(set(ids)) == len(ids), f"duplicate cell id in {name}"
     return notebook
 
 
 def save(notebook, name):
     path = NB_DIR / name
-    with open(path, "w") as f:
+    # encoding is explicit: the sources carry rho, arrows, box-drawing and emoji, so
+    # on a non-UTF-8 locale the write raises *after* open(..., "w") has already
+    # truncated the tracked notebook, leaving it empty and unparseable.
+    with open(path, "w", encoding="utf-8") as f:
         nbf.write(_stable_ids(notebook, name), f)
     print(f"  Saved {name}")
 

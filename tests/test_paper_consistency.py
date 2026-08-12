@@ -543,3 +543,45 @@ def test_paper_reports_the_windows_embi_cannot_reach():
     assert pd.notna(t.loc["Fiscal24", "LatAm OAS"])
     txt = _doc(PAPER)
     assert "discontinued by IPEADATA in **July 2024**" in txt
+
+
+# ── Section 5.2: copula fits ─────────────────────────────────────────────────
+# Added after Table 7's fitted parameters drifted from outputs/. It and
+# tbl_scenario_pnl_total.csv were the only generated tables no test read, which is
+# exactly where the paper's "every number below is pinned" claim was false.
+@pytest.mark.parametrize("pair,rho,nu", [
+    ("Ibovespa x NTN-B 5y",  0.083,  9.4),
+    ("Ibovespa x LTN 2y",    0.087,  8.2),
+    ("Ibovespa x NTN-F 10y", 0.076,  6.6),
+    ("Ibovespa x LFT 1y",    0.005, 44.3),
+])
+def test_paper_quotes_the_fitted_student_t_parameters(pair, rho, nu):
+    t = load("tbl_copula_fit.csv")
+    row = t[(t["Pair"] == pair) & (t["Copula"] == "Student-t")].iloc[0]
+    assert row["param"] == f"rho={rho}, nu={nu}", row["param"]
+    assert f"Student-t (ρ={rho}, ν={nu})" in _doc(PAPER), \
+        f"paper's Table 7 disagrees with the fit for {pair}"
+
+
+def test_student_t_wins_on_aic_for_every_pair():
+    """Section 5.2 and the docs/02 banner both rest on this."""
+    t = load("tbl_copula_fit.csv")
+    for pair, grp in t.groupby("Pair"):
+        assert grp.loc[grp["AIC"].idxmin(), "Copula"] == "Student-t", pair
+
+
+def test_paper_quotes_the_student_t_nu_range():
+    t = load("tbl_copula_fit.csv")
+    duration = t[(t["Copula"] == "Student-t") & (t["Pair"] != "Ibovespa x LFT 1y")]
+    nus = [float(p.split("nu=")[1]) for p in duration["param"]]
+    assert f"ν between {min(nus)} and {max(nus)}" in _doc(PAPER)
+
+
+def test_scenario_pnl_total_is_reported_and_internally_consistent():
+    """The other table nothing read. Excess-over-CDI must equal total minus CDI."""
+    tot = load("tbl_scenario_pnl_total.csv", index_col=0)
+    exc = load("tbl_scenario_pnl_excess_cdi.csv", index_col=0)
+    assert list(tot.index) == list(exc.index)
+    assert list(tot.columns) == list(exc.columns)
+    # every scenario's excess must sit below its total: CDI is positive throughout
+    assert (exc <= tot + 1e-9).all().all()
