@@ -1,5 +1,16 @@
 # Quantifying hidden correlation risk in multi-asset portfolios: methods and application to Brazil
 
+> **Status: background, written before the empirical work.** This is a method survey —
+> what each estimator does, what it assumes, and when it misleads. The methods
+> exposition is what the study was built on and it stands. Section 6, "What these
+> methods will reveal about Brazil," is a *prediction* and should be read against
+> [the paper](04_final_paper.md), which is the finding. Two predictions in particular
+> did not survive: Clayton was expected to be the headline copula (Student-t wins on
+> AIC, and Clayton's fitted lower-tail dependence is ≈0, so the paper quotes the
+> non-parametric exceedance rate instead), and crisis correlation spikes were expected
+> to be large (most do not survive the Forbes-Rigobon adjustment this document itself
+> describes).
+
 **Standard portfolio risk metrics systematically understate the probability and severity of simultaneous losses across asset classes.** This section provides a dual-audience technical guide — for researchers and practitioners — to detect, measure, and monitor the "hidden risk" that correlations embed in multi-asset portfolios. Applied to the Brazilian market (Ibovespa equities, government bonds LFT/LTN/NTN-B, and plain vanilla debentures), these methods reveal a structurally hostile diversification environment: Brazil's stock-bond correlation has been **persistently positive and volatile for over 18 years**, driven by sovereign credit risk rather than the inflation-output dynamics that govern developed markets. As the IMF warned in February 2026, "models calibrated on historical correlations may underestimate new risks" — a warning that has described Brazil's reality for far longer than it has described developed economies.
 
 This guide proceeds in six parts: (1) why traditional metrics fail, (2) academic econometric methods, (3) practitioner risk metrics, (4) a cross-method comparison, (5) a Python implementation roadmap for Brazilian data, and (6) Brazil-specific empirical expectations. It builds on the government bond and debenture analyses in Sections 1–2 of this paper and directly extends the IMF's February 2026 study by Adrian, Kramer, and Malik on the breakdown of stock-bond diversification.

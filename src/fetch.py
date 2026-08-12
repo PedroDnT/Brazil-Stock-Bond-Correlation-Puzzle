@@ -594,8 +594,6 @@ def validate_master(master, verbose=True):
     return fails
 
 
-def get_crisis_windows(df): return {n: (df[(df.index >= s) & (df.index <= e)]) for n, (s, e) in CRISES.items()}
-def get_regime_windows(df): return {n: (df[(df.index >= s) & (df.index <= e)]) for n, (s, e) in REGIMES.items()}
 
 
 if __name__ == "__main__":
