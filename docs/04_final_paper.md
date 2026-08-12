@@ -90,7 +90,9 @@ Untreated, a semiannual NTN-B coupon appears as a spurious one-day loss of rough
 
 **Macro.** CDI, Selic target, IPCA and PTAX from the Banco Central do Brasil SGS API. Note that SGS series 12 (CDI) is quoted as a **percent-per-day** rate, not per annum; treating it as annual and taking a 252nd root understates the accrual by roughly two orders of magnitude, and propagates into any Sharpe ratio computed against it.
 
-**Sovereign risk.** EMBI+ Brazil from IPEADATA (`JPM366_EMBI366`), in basis points, 1994 to July 2024 when the series was discontinued. It reproduces the 2,443bp peak of the September 2002 default scare, 668bp at the GFC peak, and 207bp in March 2024. EMBI is not published in the BCB SGS system, and SGS code 21619 — used as an EMBI proxy in an earlier draft of this study — is the EUR/BRL exchange rate.
+**Sovereign risk.** EMBI+ Brazil from IPEADATA (`JPM366_EMBI366`), in basis points, 1994 to July 2024 when the series was discontinued. It reproduces the 2,443bp peak of the September 2002 default scare, 668bp at the GFC peak, and 207bp in March 2024. EMBI is not published in the BCB SGS system, and SGS code 21619 — used as an EMBI proxy in an earlier draft of this study — is the EUR/BRL exchange rate. The series is forward-filled only within its published span and is left missing after 30 July 2024; two further series carry the sovereign channel past that date, and Section 6.1 establishes what each of them measures before using either.
+
+**Post-EMBI sovereign measures.** The ICE BofA Latin America option-adjusted spread from FRED (`BAMLEMRLCRPILAOAS`), a hard-currency credit spread available daily from August 2023, and the Brazil-minus-US 10-year nominal yield differential built from the NTN-F series above and FRED's `DGS10`. Neither is a substitute for EMBI and neither is presented as one.
 
 The master dataset contains 5,597 daily rows from 2 January 2004 to 30 June 2026; bond series begin 3 January 2005, giving 5,321 complete Ibovespa × NTN-B observations. **The sample end is pinned at 30 June 2026** (`SAMPLE_END` in `src/fetch.py`): all three sources publish continuously, so without a fixed cutoff the paper's numbers would drift every day and the reproducibility claim would be false. A June month-end also aligns the daily Brazilian data with the monthly cross-country panel and removes a partial final month from every monthly resampling. Six crisis episodes and six macro regimes are flagged. Because Tesouro PU data begin at the end of 2004, the regime labelled "Lula Boom (2003–2007)" contains only 2005–2007 in sample; we retain the conventional label but the estimates cover the shorter window.
 
@@ -258,13 +260,57 @@ The correction changes the picture substantially:
 
 The honest summary is that **Brazilian stock-bond correlations do not systematically spike in crises**. They spiked in one episode out of six, and that episode was a domestic political shock rather than a fiscal or global one. The mechanism that makes Brazil distinctive is better described as a persistent floor under the correlation than as crisis-time breakdown.
 
+### 6.1 Which crises repriced sovereign credit
+
+Section 2 attributes Brazil's correlation floor to a sovereign-credit channel: a fiscal shock raises the sovereign risk premium, which discounts equities and bonds together. Testing that requires a sovereign spread, and the one this study uses — EMBI+ Brazil — was discontinued by IPEADATA in **July 2024**, which is before the Fiscal24 window opens on 2024-11-01. The episode most likely to exercise the channel is the one the series does not reach.
+
+IPEADATA's metadata catalogue lists exactly one sovereign-risk series and marks it inactive, so there is no drop-in replacement. Two free series carry the channel past that date, and the first task is to establish what each one actually measures by scoring it against EMBI on the overlap.
+
+**Table 9: What the post-EMBI sovereign measures are**
+
+| Series | Starts | n overlap | ρ levels | ρ monthly levels | ρ monthly changes |
+|--------|--------|---:|---:|---:|---:|
+| Brazil 10y − US 10y | 2005-01-03 | 4,816 | 0.607 | 0.610 | 0.659 |
+| ICE BofA Latin America OAS | 2023-08-14 | 243 | −0.628 | −0.558 | 0.501 |
+
+Neither is EMBI, and the table is meant to make that concrete rather than to license a substitution.
+
+The **yield differential** spans the whole sample but is not a credit spread: it bundles credit risk with the currency and monetary-policy differential. COVID demonstrates the difference directly — EMBI widened from 266 to 379 bps while the differential *narrowed* by 181 bps, because Brazil cut Selic to 2% and Brazilian nominal yields fell further than US ones. A measure that moves the wrong way during the largest global risk-off episode in the sample cannot be read as sovereign credit.
+
+The **ICE BofA Latin America OAS** is an option-adjusted hard-currency credit spread, so it measures what EMBI measured, but it is regional rather than Brazil-specific and its history begins in August 2023. Its negative level correlation is an artefact of the short overlap — over eleven quiet months both series were roughly flat with small opposite drifts, and a level correlation across that window carries no information. The changes correlation of 0.501 is the informative number.
+
+**Table 10: Sovereign risk by window, basis points**
+
+| Window | n | Yield diff | vs calm | LatAm OAS | EMBI |
+|--------|---:|---:|---:|---:|---:|
+| Calm | 4,762 | 881 | 0 | 302 | 266 |
+| GFC | 145 | 1,149 | **+268** | — | 431 |
+| Dilma | 413 | 1,173 | **+292** | — | 371 |
+| Joesley | 11 | 889 | +8 | — | 283 |
+| COVID | 88 | 700 | −181 | — | 379 |
+| Americanas | 117 | 895 | +14 | — | 251 |
+| Fiscal24 | 61 | 965 | +84 | 277 | — |
+
+**Table 11: Fiscal24 (2024-11-01 to 2025-01-31), basis points**
+
+| Measure | Start | Peak | Mean | Intra-window range | Calm mean |
+|---------|---:|---:|---:|---:|---:|
+| Brazil 10y − US 10y | 843 | 1,083 | 965 | **253** | 881 |
+| ICE BofA LatAm OAS | 275 | 289 | 277 | **25** | 302 |
+
+The two measures disagree about Fiscal24, and the disagreement is the result. Local-currency Brazilian risk repriced sharply: the yield differential ran from 843 to a peak of 1,083 bps, a 253 bp range inside three months. Hard-currency credit did essentially nothing — the regional OAS moved 25 bps end to end and spent the window *below* its own calm average of 302 bps. **Fiscal24 was priced as a domestic fiscal, currency and monetary event, not as a change in default risk.**
+
+That sharpens Section 8.2's finding rather than overturning it. Bonds underperformed cash in Joesley and Fiscal24, the two domestic shocks, and the sovereign-credit channel as literally specified — hard-currency default risk — was not what transmitted Fiscal24. What repriced was the local real rate and the currency, which is the channel that matters for a domestic investor holding NTN-B and NTN-F. The caveat is that the OAS is regional: Brazil is a large but not dominant share of Latin American hard-currency issuance, so a Brazil-specific credit move would be damped in it, though a 253 bp local repricing with a 25 bp regional credit response is a wide enough gap that dilution alone is unlikely to explain it.
+
+Finally, a note on what this replaced. Until this revision the pipeline forward-filled EMBI to the end of the sample, holding it at a constant 228 bps for 501 trading days — the entire Fiscal24 window included. Every figure and regression that used the series past July 2024 was reading a frozen number as data. The series now stops where its publisher stopped it, and `validate_master` fails if a long flat tail ever reappears.
+
 ---
 
 ## 7. DCC-GARCH: time-varying conditional correlations
 
 Stage-1 GARCH(1,1) persistence is uniformly high: Ibovespa 0.985, LTN 0.985, NTN-F 0.987, with NTN-B at the IGARCH boundary of 1.000.
 
-**Table 9: DCC(1,1) stage-2 estimates with standard errors**
+**Table 12: DCC(1,1) stage-2 estimates with standard errors**
 
 | Pair | a | SE(a) | t(a) | b | Persistence | mean ρ_t | sd ρ_t | range |
 |------|---:|---:|---:|---:|---:|---:|---:|:---:|
@@ -275,11 +321,11 @@ Stage-1 GARCH(1,1) persistence is uniformly high: Ibovespa 0.985, LTN 0.985, NTN
 
 The evidence for genuine time variation is **marginal**. Only LTN rejects a = 0 at the 5% level (t = 2.26); NTN-B falls short (t = 1.77) and NTN-F does not come close (t = 1.15). The LFT pair is not identified — its return series is near-deterministic, so the conditional correlation path is degenerate by construction and should not be interpreted.
 
-Because `a` is only weakly identified, the *levels* of the DCC path are sensitive to the sample: extending or trimming the sample by a few weeks moves the crisis-window averages in Table 10 by several hundredths, while leaving the ordering broadly intact. That instability is a reason to treat Table 10 as descriptive and to let the Forbes-Rigobon results of Section 6 — which are stable — carry the crisis claim.
+Because `a` is only weakly identified, the *levels* of the DCC path are sensitive to the sample: extending or trimming the sample by a few weeks moves the crisis-window averages in Table 13 by several hundredths, while leaving the ordering broadly intact. That instability is a reason to treat Table 13 as descriptive and to let the Forbes-Rigobon results of Section 6 — which are stable — carry the crisis claim.
 
 We therefore report the DCC paths as descriptive rather than as evidence that Brazilian stock-bond correlations are established as time-varying processes.
 
-**Table 10: Mean DCC conditional correlation by period**
+**Table 13: Mean DCC conditional correlation by period**
 
 | Period | Ibov × NTN-B | Ibov × LTN | Ibov × NTN-F |
 |--------|---:|---:|---:|
@@ -291,7 +337,7 @@ We therefore report the DCC paths as descriptive rather than as evidence that Br
 | Fiscal24 | 0.128 | 0.132 | 0.125 |
 | Full sample | 0.111 | 0.118 | 0.125 |
 
-The DCC ranking broadly agrees with the Forbes-Rigobon results: Joesley Day and COVID are the two elevated episodes and the GFC is the lowest. For NTN-F, Joesley is a clear outlier at 0.364 against a full-sample 0.125 (2.9×); for NTN-B the two episodes are close (Joesley 0.177, COVID 0.180, against 0.111). Since the DCC path is estimated from returns whose variance rises several-fold in exactly these windows — and since `a` is only marginally identified — Table 8 rather than Table 10 is the test.
+The DCC ranking broadly agrees with the Forbes-Rigobon results: Joesley Day and COVID are the two elevated episodes and the GFC is the lowest. For NTN-F, Joesley is a clear outlier at 0.364 against a full-sample 0.125 (2.9×); for NTN-B the two episodes are close (Joesley 0.177, COVID 0.180, against 0.111). Since the DCC path is estimated from returns whose variance rises several-fold in exactly these windows — and since `a` is only marginally identified — Table 8 rather than Table 13 is the test.
 
 ---
 
@@ -316,7 +362,7 @@ PC1 across all five assets peaks at 0.668 on 19 March 2020, the height of the CO
 
 ### 8.2 Crisis P&L
 
-**Table 11: Portfolio total return by crisis episode (%)**
+**Table 14: Portfolio total return by crisis episode (%)**
 
 | Portfolio | GFC | Dilma | Joesley | COVID | Americanas | Fiscal24 |
 |-----------|---:|---:|---:|---:|---:|---:|
@@ -326,7 +372,7 @@ PC1 across all five assets peaks at 0.668 on 19 March 2020, the height of the CO
 | Bond heavy (20/80) | +3.6 | +22.8 | −2.3 | −1.9 | +7.9 | −0.2 |
 | LFT only (cash) | +7.3 | +23.4 | +0.5 | +1.2 | +6.1 | +2.8 |
 
-**Table 12: The same episodes in excess of CDI (percentage points)**
+**Table 15: The same episodes in excess of CDI (percentage points)**
 
 | Portfolio | GFC | Dilma | Joesley | COVID | Americanas | Fiscal24 |
 |-----------|---:|---:|---:|---:|---:|---:|
@@ -368,7 +414,7 @@ Because the earlier version of this study defined the LFT return as compounded C
 
 ### 8.4 Stressed VaR
 
-**Table 13: 99% 10-day Gaussian VaR (% of capital)**
+**Table 16: 99% 10-day Gaussian VaR (% of capital)**
 
 | Portfolio | Calm | GFC | Dilma | COVID | Americanas | Fiscal24 |
 |-----------|---:|---:|---:|---:|---:|---:|
@@ -416,7 +462,7 @@ The panel runs January 2005 to June 2026, 258 months, split at the IMF's turning
 
 ### 9.2 Stock-bond correlations by country and period
 
-**Table 14: Monthly stock-bond correlation, matched panel**
+**Table 17: Monthly stock-bond correlation, matched panel**
 
 | Country | ρ full | ρ pre-2020 | 95% CI | ρ post-2020 | 95% CI | Shift | p | Shifted at 5% |
 |---------|---:|---:|:---:|---:|:---:|---:|---:|:---:|
@@ -440,7 +486,7 @@ DiD(c) = [ρ_post(c) − ρ_pre(c)] − [ρ_post(BR) − ρ_pre(BR)]
 
 A positive, significant DiD means country *c*'s correlation rose by more than Brazil's — which, since all four start well below Brazil, is what moving toward Brazil means.
 
-**Table 15: Convergence toward Brazil**
+**Table 18: Convergence toward Brazil**
 
 | Country | Gap to BR, pre | Gap to BR, post | Narrowed | DiD | Bootstrap SE | p | Converged at 5% |
 |---------|---:|---:|:---:|---:|---:|---:|:---:|
@@ -457,7 +503,7 @@ We flag one caveat on the direction result itself. Four countries all moving the
 
 ### 9.4 The floor, restated cross-sectionally
 
-**Table 16: Sign of the stock-bond correlation by period**
+**Table 19: Sign of the stock-bond correlation by period**
 
 | Country | Pre-2020 | Post-2020 | Ever significantly negative |
 |---------|:---:|:---:|:---:|
@@ -507,7 +553,9 @@ The earlier draft reported findings on Brazil's real policy rate ranking against
 
 **Implication for the IMF framework.** The advanced economies have lost a hedge they used to have; Brazil never had one to lose. For the G4 the post-2019 shift may prove reversible — the rolling series show they have been on both sides of zero before. In Brazil there is no negative-correlation regime to revert to. Calling this "convergence" is defensible as a direction and premature as a finding.
 
-**Limitations.** Bond series are constant-maturity constructions from Tesouro Direto retail reference prices rather than institutional secondary-market quotes; realised tenor deviates from target by an average of 0.74 years for NTN-B and 1.11 years for NTN-F. Crisis windows are researcher-defined, and the Joesley window is only 11 trading days, so any statistic from it is imprecise. Regime boundaries are drawn from political economy rather than estimated from the data — a Markov-switching estimate would be a natural extension, and given the bootstrap results in Table 4 it might well fail to find distinct regimes. On the cross-country panel, the post-break window is 78 months, which is short for a correlation estimate; the four advanced economies are not independent observations; the break date is imposed from the IMF note rather than estimated; and Brazil's leg of the panel uses a different equity index and bond source from the other four, mitigated but not eliminated by the construction cross-check in Section 9.1. The real-rate and news-sentiment claims of the earlier draft remain unreproduced.
+**Finding 13 — Fiscal24 repriced local-currency risk, not default risk.** The Brazil-minus-US 10-year differential ran from 843 to 1,083 bps inside the window, a 253 bp range, while the ICE BofA Latin America hard-currency credit spread moved 25 bps and stayed below its own calm average. The sovereign-credit channel as literally specified — default risk — is not what transmitted the episode; the local real rate and the currency are. The two domestic-shock episodes in which bonds underperformed cash were repriced in local-currency terms, which is the term that matters for a domestic holder of NTN-B and NTN-F.
+
+**Limitations.** Bond series are constant-maturity constructions from Tesouro Direto retail reference prices rather than institutional secondary-market quotes; realised tenor deviates from target by an average of 0.74 years for NTN-B and 1.11 years for NTN-F. Crisis windows are researcher-defined, and the Joesley window is only 11 trading days, so any statistic from it is imprecise. Regime boundaries are drawn from political economy rather than estimated from the data — a Markov-switching estimate would be a natural extension, and given the bootstrap results in Table 4 it might well fail to find distinct regimes. The sovereign-credit channel has no single measure spanning the sample: EMBI+ Brazil ends in July 2024, the hard-currency credit spread that replaces it begins in August 2023 and is regional rather than Brazil-specific, and the yield differential that does span the sample is not a credit spread. On the cross-country panel, the post-break window is 78 months, which is short for a correlation estimate; the four advanced economies are not independent observations; the break date is imposed from the IMF note rather than estimated; and Brazil's leg of the panel uses a different equity index and bond source from the other four, mitigated but not eliminated by the construction cross-check in Section 9.1. The real-rate and news-sentiment claims of the earlier draft remain unreproduced.
 
 ---
 
@@ -555,6 +603,8 @@ Portelli, L. and Roncalli, T. (2024). "Rethinking the Stock-Bond Correlation." A
 | IGP-M (% per month) | BCB SGS | 189 | 2004– | Monthly |
 | PTAX BRL/USD | BCB SGS | 1 | 2004– | Daily |
 | NTN-B / LTN / NTN-F / LFT PU and yields | Tesouro Transparente | `PrecoTaxaTesouroDireto.csv` | Dec 2004– | Daily |
+| ICE BofA Latin America OAS (bps) | FRED | `BAMLEMRLCRPILAOAS` | Aug 2023– | Daily |
+| US 10y Treasury (bps) | FRED | `DGS10` | 1962– | Daily |
 
 Bond target tenors: NTN-B 5y (Tesouro IPCA+ com Juros Semestrais), LTN 2y (Tesouro Prefixado), NTN-F 10y (Tesouro Prefixado com Juros Semestrais), LFT 1y and longest-outstanding (Tesouro Selic).
 

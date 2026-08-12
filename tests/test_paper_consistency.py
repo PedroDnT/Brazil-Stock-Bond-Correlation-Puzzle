@@ -475,3 +475,71 @@ def test_rolling_portfolio_metrics():
     assert t["ENB 60/40"].mean() == pytest.approx(1.110, abs=0.002)
     # ENB for a 2-asset portfolio is bounded above by 2 -- stated in section 8.1
     assert t["ENB 60/40"].max() <= 2.0
+
+
+# ── Section 6.1: the sovereign channel after EMBI ────────────────────────────
+SOVEREIGN = pytest.mark.skipif(
+    not (OUT / "tbl_sovereign_fiscal24.csv").exists(),
+    reason="sovereign tables not generated — run scripts/run_analysis.py",
+)
+
+
+@SOVEREIGN
+def test_sovereign_validation_matches_the_table():
+    t = load("tbl_sovereign_validation.csv", index_col=0)
+    txt = _doc(PAPER)
+    for series in ("Brazil 10y - US 10y", "ICE BofA LatAm OAS"):
+        r = t.loc[series]
+        lvl = f"{r['rho levels']:.3f}".replace("-", "−")
+        assert f"| {lvl} |" in txt, f"{series} level rho absent from the paper"
+        assert f"{r['rho monthly changes']:.3f}" in txt
+
+
+@SOVEREIGN
+def test_fiscal24_ranges_match_the_table():
+    """Each claim is checked where it is written — a table cell must not cover for prose."""
+    t = load("tbl_sovereign_fiscal24.csv", index_col=0)
+    yd, oas = t.loc["Brazil 10y - US 10y"], t.loc["ICE BofA LatAm OAS"]
+    r_yd, r_oas = f"{yd['range']:.0f}", f"{oas['range']:.0f}"
+
+    paper = _doc(PAPER)
+    assert f"**{r_yd}**" in paper, "Table 11 yield-diff range cell"
+    assert f"**{r_oas}**" in paper, "Table 11 OAS range cell"
+    assert f"a {r_yd} bp range inside three months" in paper
+    assert f"moved {r_oas} bps end to end" in paper
+    assert f"a {r_yd} bp local repricing with a {r_oas} bp regional" in paper
+    assert f"from {yd['start']:.0f} to a peak of {yd['peak']:,.0f}" in paper
+
+    readme = _doc(README)
+    assert f"**{r_yd} bp** intra-window range" in readme
+    assert f"moved **{r_oas} bps**" in readme
+
+
+@SOVEREIGN
+def test_the_two_measures_disagree_about_fiscal24():
+    """The paper's Finding 13 rests on this gap; if it closes, the claim must change."""
+    t = load("tbl_sovereign_fiscal24.csv", index_col=0)
+    yd, oas = t.loc["Brazil 10y - US 10y"], t.loc["ICE BofA LatAm OAS"]
+    assert yd["range"] > 5 * oas["range"], (yd["range"], oas["range"])
+    # the credit spread stayed below its own calm average during the window
+    assert oas["mean"] < oas["calm mean"]
+
+
+@SOVEREIGN
+def test_covid_shows_the_differential_is_not_a_credit_spread():
+    """EMBI widened while the yield differential narrowed — the paper's key caveat."""
+    t = load("tbl_sovereign_by_window.csv", index_col=0)
+    assert t.loc["COVID", "yield diff vs calm"] < 0
+    assert t.loc["COVID", "EMBI"] > t.loc["Calm", "EMBI"]
+    txt = _doc(PAPER)
+    assert f"from {t.loc['Calm', 'EMBI']:.0f} to {t.loc['COVID', 'EMBI']:.0f} bps" in txt
+    assert f"narrowed* by {abs(t.loc['COVID', 'yield diff vs calm']):.0f} bps" in txt
+
+
+@SOVEREIGN
+def test_paper_reports_the_windows_embi_cannot_reach():
+    t = load("tbl_sovereign_by_window.csv", index_col=0)
+    assert pd.isna(t.loc["Fiscal24", "EMBI"]), "EMBI now covers Fiscal24 — update the prose"
+    assert pd.notna(t.loc["Fiscal24", "LatAm OAS"])
+    txt = _doc(PAPER)
+    assert "discontinued by IPEADATA in **July 2024**" in txt

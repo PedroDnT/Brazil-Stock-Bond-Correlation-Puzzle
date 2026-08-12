@@ -44,15 +44,13 @@ import numpy as np
 import pandas as pd
 import requests
 
-from fetch import get_with_retry, SAMPLE_END
+from fetch import get_with_retry, fetch_fred_csv, FRED_CSV, SAMPLE_END
 
 BASE_DIR = Path(__file__).parent.parent
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROC_DIR = BASE_DIR / "data" / "processed"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 PROC_DIR.mkdir(parents=True, exist_ok=True)
-
-FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 
 # OECD-harmonised series. Same definition in every country, which is the point.
 COUNTRIES = {
@@ -70,23 +68,8 @@ PANEL_END = SAMPLE_END        # same fixed cutoff as the Brazilian sample
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# FRED (keyless)
+# FRED (keyless) — fetch_fred_csv lives in fetch.py so both modules share one copy
 # ═════════════════════════════════════════════════════════════════════════════
-def fetch_fred_csv(series_id, timeout=90):
-    """Fetch one FRED series via the public CSV endpoint. No API key required."""
-    r = get_with_retry(FRED_CSV, timeout=timeout, params={"id": series_id})
-    text = r.text
-    if text.lstrip().startswith("<"):
-        raise ValueError(f"FRED returned HTML for {series_id} — series does not exist")
-    df = pd.read_csv(io.StringIO(text))
-    date_col = df.columns[0]
-    df[date_col] = pd.to_datetime(df[date_col])
-    s = pd.to_numeric(df[df.columns[1]], errors="coerce")
-    s.index = df[date_col]
-    s.name = series_id
-    return s.dropna()
-
-
 def fetch_global_raw(force=False):
     """All FRED series for the panel, cached to data/raw/global_panel_raw.csv."""
     cache = RAW_DIR / "global_panel_raw.csv"

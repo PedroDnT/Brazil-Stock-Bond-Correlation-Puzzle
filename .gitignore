@@ -38,3 +38,4 @@ outputs/
 # Local agent / AI tool configs
 .agents/
 .claude/
+.codex/
