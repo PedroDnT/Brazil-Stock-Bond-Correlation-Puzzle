@@ -33,7 +33,7 @@ outputs/
 
 # Tool artifacts
 .paper-refs.json
-.vscode/paper-cache.json
+.vscode/
 
 # Local agent / AI tool configs
 .agents/

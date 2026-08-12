@@ -199,7 +199,7 @@ code{font-family:var(--mono);font-size:.92em;}
     <div class="rule-top"></div>
     <div class="mast-grid">
       <div>
-        <p class="eyebrow">Working paper · Brazil · Jan 2005 – Jul 2026 · 5,338 paired trading days</p>
+        <p class="eyebrow">Working paper · Brazil · Jan 2005 – Jun 2026 · 5,321 paired trading days</p>
         <h1>A Floor, <span class="thin">Not a Spike</span></h1>
       </div>
       <div class="byline">
@@ -379,7 +379,7 @@ code{font-family:var(--mono);font-size:.92em;}
       </ul>
       <p class="src">Every figure comes from <code>docs/04_final_paper.md</code>, which
         <code>scripts/run_analysis.py</code> regenerates from free public data (IPEADATA, BCB SGS,
-        Tesouro Transparente). Method, all sixteen tables and the full limitations are in the paper.</p>
+        Tesouro Transparente). Method, all nineteen tables and the full limitations are in the paper.</p>
     </section>
   </div>
 
@@ -397,8 +397,8 @@ var REGIMES=[
  {k:"Dilma Deterioration",yr:"2013–2016",n:908,r:0.114,lo:0.049,hi:0.177,d:0.077,se:0.057,p:0.181},
  {k:"Reform Era",yr:"2016–2019",n:821,r:0.199,lo:0.133,hi:0.264,d:0.163,se:0.085,p:0.052},
  {k:"COVID & Post-COVID",yr:"2020–2022",n:746,r:0.227,lo:0.158,hi:0.294,d:0.190,se:0.117,p:0.085},
- {k:"Current Cycle",yr:"2023–2026",n:888,r:0.109,lo:0.044,hi:0.174,d:0.073,se:0.057,p:0.207},
- {k:"Full sample",yr:"2005–2026",n:5338,r:0.122,lo:0.096,hi:0.149,d:null,se:null,p:null,full:true}
+ {k:"Current Cycle",yr:"2023–2026",n:871,r:0.110,lo:0.044,hi:0.175,d:0.074,se:0.055,p:0.181},
+ {k:"Full sample",yr:"2005–2026",n:5321,r:0.122,lo:0.096,hi:0.149,d:null,se:null,p:null,full:true}
 ];
 /* Table 16 — minimum 60-month rolling stock-bond correlation over the sample. */
 var FLOOR=[
@@ -409,17 +409,17 @@ var FLOOR=[
  {k:"Brazil",v:0.073,pre:0.443,post:0.522,br:true}
 ];
 var HORIZON=[
- {k:"NTN-F 10y",v:[0.147,0.395,0.473,0.377]},
- {k:"NTN-B 5y",v:[0.122,0.335,0.405,0.421]},
- {k:"LTN 2y",v:[0.134,0.315,0.318,0.172]},
- {k:"LFT 1y",v:[0.005,0.010,0.016,0.036],flat:true}
+ {k:"NTN-F 10y",v:[0.147,0.396,0.474,0.379]},
+ {k:"NTN-B 5y",v:[0.122,0.336,0.405,0.423]},
+ {k:"LTN 2y",v:[0.134,0.316,0.319,0.174]},
+ {k:"LFT 1y",v:[0.005,0.010,0.015,0.038],flat:true}
 ];
 var HLAB=["Daily","Weekly","Monthly","Qtrly"];
 var CRISES=[
  {k:"GFC",n:145,raw:0.097,adj:0.033,vr:8.72,v:"artefact"},
- {k:"Dilma",n:412,raw:0.107,adj:0.095,vr:1.29,v:"contagion"},
+ {k:"Dilma",n:412,raw:0.107,adj:0.095,vr:1.29,v:"marginal"},
  {k:"Joesley",n:11,raw:0.843,adj:0.580,vr:4.84,v:"contagion"},
- {k:"COVID",n:88,raw:0.370,adj:0.124,vr:10.10,v:"contagion"},
+ {k:"COVID",n:88,raw:0.370,adj:0.124,vr:10.10,v:"marginal"},
  {k:"Americanas",n:117,raw:0.022,adj:0.027,vr:0.67,v:"artefact"},
  {k:"Fiscal24",n:60,raw:0.055,adj:0.062,vr:0.78,v:"artefact"}
 ];

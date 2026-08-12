@@ -29,9 +29,9 @@ project/
 │   ├── test_metrics.py           # 31 tests: the estimators
 │   ├── test_global_data.py       # 17 tests: cross-country bond construction
 │   ├── test_sovereign.py         # 12 tests: sovereign series + the ffill guard
-│   ├── test_docs.py              # 11 tests: docs match the pipeline that exists
-│   └── test_paper_consistency.py # 84 tests: paper + README numbers vs outputs/
-├── .github/workflows/tests.yml   # CI: the 71 network-free tests
+│   ├── test_docs.py              # 13 tests: docs match the pipeline that exists
+│   └── test_paper_consistency.py # 91 tests: paper + README numbers vs outputs/
+├── .github/workflows/tests.yml   # CI: the 73 network-free tests
 ├── site/              # static web version of the paper
 └── outputs/           # figures (.png) and tables (.csv), gitignored
 ```
@@ -47,7 +47,7 @@ pip install -r requirements.txt
 python3 src/fetch.py                     # ~3 min, prints validation
 python3 scripts/run_analysis.py
 python3 scripts/run_global_analysis.py
-python3 -m pytest tests/ -q              # 155 tests
+python3 -m pytest tests/ -q              # 164 tests
 ```
 
 No API key is required at any stage.
@@ -193,9 +193,11 @@ no distinct regimes, which would itself be a result.
 than from the data. Estimating it would make the convergence test self-contained.
 
 **The convergence result is directionally unanimous and not established.** Four of four
-advanced economies narrowed toward Brazil; only Germany is significant. Four correlated
-bond markets are closer to one or two independent observations than to four, so more
-countries — not a longer post-break window — is what would settle it.
+advanced economies narrowed toward Brazil; only Germany is significant. Two things bind
+here and the paper lists both: the post-break window is 78 months, which is short for a
+correlation estimate, and four correlated bond markets are closer to one or two
+independent observations than to four. Waiting lengthens the window; only more countries
+fixes the second.
 
 **Bond series come from Tesouro Direto retail reference prices**, not institutional
 secondary-market quotes. Realised tenor deviates from target by 0.74 years (NTN-B) and
@@ -213,7 +215,6 @@ notebook that had never been executed. Section 9.5 says so explicitly.
   stable result and lets Forbes-Rigobon carry the crisis claim.
 - The Joesley window is 11 trading days. Any statistic from it is imprecise, and it is
   excluded from the 5×5 stressed-VaR table for that reason.
-- The post-break window on the panel is 78 months, which is short for a correlation.
 
 ### Repo-level
 

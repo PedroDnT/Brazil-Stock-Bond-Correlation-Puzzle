@@ -11,7 +11,7 @@
 > | Stocks and bonds "overwhelmingly sell off together during crises" | Most crisis correlation spikes are volatility artefacts; after the Forbes-Rigobon adjustment only Joesley Day shows contagion (§6) |
 > | Bonds "almost always fall with stocks during crises" | Bonds cushioned four of six episodes — NTN-B returned **+5.8pp** over CDI during the GFC (§8.2) |
 > | Sustained negative correlation in 2003–2007 and 2016–2019 | **No regime** has a negative correlation; the lowest is Lula Boom at +0.037, and no regime is statistically distinguishable from any other (§4.2) |
-> | The IMF finding represents convergence toward Brazil | Directionally unanimous (4 of 4) but significant in only one country; "defensible as a direction and premature as a finding" (§9.3) |
+> | The IMF finding represents convergence toward Brazil | Directionally unanimous (4 of 4) but significant in only one country; "defensible as a direction and premature as a finding" (§10) |
 
 Brazil has lived with persistently positive stock-bond correlations for decades — driven by fiscal dominance, sovereign credit risk, and the unique structure of its domestic debt market. While the IMF's February 2026 study documents diversification breakdown as a post-2020 phenomenon for the US, Germany, Japan, and the UK, this report replicates and extends the IMF framework for Brazil, identifies data sources for quantitative implementation, documents regime-specific correlation dynamics, and explains why the country's floating-rate LFT bonds, commodity-heavy equity index, and recurring fiscal crises create a fundamentally different diversification landscape.
 
@@ -59,7 +59,7 @@ In advanced economies, government bonds act as a shock absorber during equity se
 
 ## Crisis-by-crisis correlation evidence
 
-The following table summarizes correlation behavior across Brazil's major financial stress episodes, documenting the near-universal pattern of positive stock-bond co-movement during crises:
+The following table summarizes correlation behavior across Brazil's major financial stress episodes as they were understood before this study ran. The correlation-sign column is a narrative reading of contemporaneous market commentary, not an estimate: §6 of the paper tests these episodes formally and overturns the two largest — the GFC and COVID both lose their apparent elevation once the Forbes-Rigobon volatility adjustment is applied.
 
 | Episode                  | Ibovespa                                                           | Bond yields/spreads                    | BRL/USD                | Correlation sign                                                  | Primary driver                                  |
 | ------------------------ | ------------------------------------------------------------------ | -------------------------------------- | ---------------------- | ----------------------------------------------------------------- | ----------------------------------------------- |
@@ -228,7 +228,7 @@ Note: Since March 2025, queries are limited to 10-year windows; use multiple pag
 
 ### The LFT is Brazil's true diversifier — but not for the reasons you'd expect
 
-In developed markets, the diversification argument for bonds rests on **negative correlation**: bonds rally when stocks fall, cushioning portfolio losses. In Brazil, fixed-rate bonds (IRF-M) and inflation-linked bonds (IMA-B) fail this test during every major crisis — they sell off alongside equities. The LFT, paradoxically, provides diversification through **non-correlation** rather than negative correlation. Its near-zero duration means it neither gains nor loses during stress; it simply accrues the policy rate. In a market where "not losing money" during a crisis is the realistic benchmark for diversification, the LFT is the most reliable domestic instrument.
+In developed markets, the diversification argument for bonds rests on **negative correlation**: bonds rally when stocks fall, cushioning portfolio losses. In Brazil, fixed-rate and inflation-linked bonds were expected to fail this test in every major crisis by selling off alongside equities — §8.2 of the paper tests it and finds they cushioned four of the six episodes, failing only in the two domestic fiscal-political shocks. The LFT, paradoxically, provides diversification through **non-correlation** rather than negative correlation. Its near-zero duration means it neither gains nor loses during stress; it simply accrues the policy rate. In a market where "not losing money" during a crisis is the realistic benchmark for diversification, the LFT is the most reliable domestic instrument.
 
 However, the LFT's diversification benefit is **bounded**: it cannot produce the portfolio-saving positive returns during equity crashes that US Treasuries historically delivered (pre-2020). For a Brazilian investor seeking genuine negative correlation with Ibovespa, the options are limited to **USD-denominated assets** (the BRL weakens during equity selloffs, so dollar exposure benefits) and **gold**.
 
