@@ -99,7 +99,7 @@ master = build_master_returns(force_rebuild=False)
 print(f"Shape         : {master.shape}")
 print(f"Date range    : {master.index[0].date()} → {master.index[-1].date()}")
 print(f"\\nReturn columns: {[c for c in master.columns if c in ASSET_LABELS]}")
-print(f"Level columns : {['embi','cdi_level','selic','ipca','brl_usd']}")
+print(f"Level columns : {['embi','cdi_level','selic','ipca','brl_usd','sov_oas','yld_diff']}")
 print(f"\\nFirst 3 rows:")
 master.head(3)
 """),
@@ -215,9 +215,9 @@ fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True)
 
 # EMBI
 ax = axes[0]
-ax.plot(master.index, master["embi"], color="#d62728", lw=1.2)
+ax.plot(master.index, master["embi"], color="#d62728", lw=1.2)  # ends Jul 2024
 add_crisis_bands(ax)
-ax.set_ylabel("EMBI+ Brazil (%)", fontsize=10)
+ax.set_ylabel("EMBI+ Brazil (bps)", fontsize=10)
 ax.set_title("Sovereign risk proxy (EMBI+)", fontsize=11)
 ax.axhline(y=4.0, color="gray", ls="--", lw=0.8, alpha=0.6)
 
@@ -1507,7 +1507,11 @@ md("""## 4. DCC correlation vs. EMBI sovereign risk"""),
 
 code("""
 rho_ntnb = dcc_results[("ibov","ntnb")]["rho"]
-embi_aligned = master["embi"].reindex(rho_ntnb.index).ffill()
+# No ffill: EMBI is already forward-filled within its published span by fetch.py and
+# stops at 2024-07-30. Filling here would put the old frozen tail straight back into
+# the figure, drawing a flat line across Fiscal24 that looks like data.
+embi_aligned = master["embi"].reindex(rho_ntnb.index)
+oas_aligned  = master["sov_oas"].reindex(rho_ntnb.index)
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
 
@@ -1516,12 +1520,14 @@ ax = axes[0]
 ax2 = ax.twinx()
 ax.plot(rho_ntnb.index, rho_ntnb, color="#d62728", lw=1.3, label="DCC ρ_t (left)")
 ax2.plot(embi_aligned.index, embi_aligned, color="#1f77b4",
-         lw=1, alpha=0.6, label="EMBI % (right)")
+         lw=1, alpha=0.6, label="EMBI+ bps (right)")
+ax2.plot(oas_aligned.index, oas_aligned, color="#2ca02c",
+         lw=1, alpha=0.7, label="LatAm OAS bps (right)")
 add_crisis_bands(ax, alpha=0.1)
 ax.set_ylabel("DCC ρ_t (Ibovespa × NTN-B)", color="#d62728", fontsize=10)
-ax2.set_ylabel("EMBI+ Brazil (%)", color="#1f77b4", fontsize=10)
+ax2.set_ylabel("Sovereign spread (bps)", fontsize=10)
 ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-ax.set_title("DCC correlation vs. EMBI sovereign risk", fontsize=11)
+ax.set_title("DCC correlation vs. sovereign risk (EMBI ends Jul 2024)", fontsize=11)
 lines1, labels1 = ax.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
 ax.legend(lines1 + lines2, labels1 + labels2, fontsize=8)
@@ -1529,14 +1535,14 @@ ax.legend(lines1 + lines2, labels1 + labels2, fontsize=8)
 # Scatter
 ax3 = axes[1]
 df_scatter = pd.DataFrame({"rho": rho_ntnb, "embi": embi_aligned}).dropna()
-crisis_label = master["crisis"].reindex(df_scatter.index).fillna("None")
+crisis_label = master["crisis"].reindex(df_scatter.index).fillna("Calm")
 for cname, group in df_scatter.groupby(crisis_label):
     color = CRISIS_COLORS.get(cname, "#aaaaaa")
-    alpha = 0.7 if cname != "None" else 0.15
-    size  = 12  if cname != "None" else 3
+    alpha = 0.7 if cname != "Calm" else 0.15
+    size  = 12  if cname != "Calm" else 3
     ax3.scatter(group["embi"], group["rho"], s=size,
                 color=color, alpha=alpha,
-                label=cname if cname != "None" else None)
+                label=cname if cname != "Calm" else None)
 
 # OLS trend line
 from numpy.polynomial import polynomial as P
@@ -1546,7 +1552,7 @@ coeffs = np.polyfit(x, y, 1)
 xline  = np.linspace(x.min(), x.max(), 100)
 ax3.plot(xline, np.polyval(coeffs, xline), "k--", lw=1.5)
 r2 = np.corrcoef(x, y)[0,1]**2
-ax3.set_xlabel("EMBI+ Brazil (%)", fontsize=10)
+ax3.set_xlabel("EMBI+ Brazil (bps)", fontsize=10)
 ax3.set_ylabel("DCC ρ_t", fontsize=10)
 ax3.set_title(f"Scatter: DCC ρ vs. EMBI  (R²={r2:.3f})", fontsize=11)
 ax3.legend(fontsize=8)
@@ -1555,7 +1561,7 @@ plt.tight_layout()
 plt.savefig("../outputs/fig_dcc_vs_embi.png", dpi=150, bbox_inches="tight")
 plt.show()
 print(f"EMBI → DCC correlation R² = {r2:.3f}")
-print("(Higher R² = sovereign risk is primary driver of stock-bond correlation)")
+print(f"(EMBI span only: {df_scatter.index.min().date()} to {df_scatter.index.max().date()})")
 """),
 
 md("""## 5. Crisis-period DCC correlation summary table"""),

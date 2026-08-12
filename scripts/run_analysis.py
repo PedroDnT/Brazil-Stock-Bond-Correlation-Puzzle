@@ -363,6 +363,63 @@ print(roll.describe().loc[["mean", "min", "max"]].round(3).to_string())
 print(f"\n  NOTE: ENB for the 2-asset 60/40 is bounded above by 2 by construction.")
 print(f"  PC1 'all' is computed on all {len(RET)} assets; 'PC1 60/40' on the two held.")
 
+# ─────────────────────────────────────────────────────────────────────────────
+hdr("12. The sovereign-credit channel after EMBI")
+
+# EMBI+ Brazil ends 2024-07-30. Two free series carry the channel past it, and the
+# first job is to show what each one is by scoring it against EMBI on the overlap.
+embi = master["embi"].dropna()
+rows = []
+for col, lab in [("yld_diff", "Brazil 10y - US 10y"), ("sov_oas", "ICE BofA LatAm OAS")]:
+    b = pd.concat([master[col].rename("x"), embi.rename("e")], axis=1).dropna()
+    mo = b.resample("ME").last()
+    rows.append({"Series": lab,
+                 "starts": master[col].dropna().index[0].date(),
+                 "n overlap": len(b),
+                 "rho levels": round(b["x"].corr(b["e"]), 3),
+                 "rho monthly levels": round(mo["x"].corr(mo["e"]), 3),
+                 "rho monthly changes": round(mo.diff().dropna()["x"]
+                                              .corr(mo.diff().dropna()["e"]), 3)})
+val = pd.DataFrame(rows).set_index("Series")
+save(val, "tbl_sovereign_validation.csv")
+print(val.to_string())
+print(f"\n  EMBI runs to {embi.index[-1].date()}; the sample ends "
+      f"{master.index[-1].date()}.")
+
+# Levels by window. The question is whether a crisis repriced sovereign credit.
+calm_s = master[master["crisis"] == "Calm"]
+rows = []
+for cname in ["Calm"] + [c for c in CRISES]:
+    k = calm_s if cname == "Calm" else master[master["crisis"] == cname]
+    rec = {"Window": cname, "n": len(k)}
+    for col, lab in [("yld_diff", "yield diff"), ("sov_oas", "LatAm OAS"), ("embi", "EMBI")]:
+        v = k[col].dropna()
+        rec[lab] = round(v.mean()) if len(v) else np.nan
+    rec["yield diff vs calm"] = (0 if cname == "Calm"
+                                 else round(rec["yield diff"] - calm_s["yld_diff"].mean()))
+    rows.append(rec)
+sov = pd.DataFrame(rows).set_index("Window")
+save(sov, "tbl_sovereign_by_window.csv")
+print("\n  Levels in bps by window:")
+print(sov.to_string())
+
+# Fiscal24 is the episode the discontinuation cost us, and the two measures
+# disagree about it in a way that is itself the result.
+f = master.loc["2024-11-01":"2025-01-31"]
+fis = pd.DataFrame([
+    {"Measure": "Brazil 10y - US 10y", "start": round(f["yld_diff"].iloc[0]),
+     "peak": round(f["yld_diff"].max()), "mean": round(f["yld_diff"].mean()),
+     "range": round(f["yld_diff"].max() - f["yld_diff"].min()),
+     "calm mean": round(calm_s["yld_diff"].mean())},
+    {"Measure": "ICE BofA LatAm OAS", "start": round(f["sov_oas"].iloc[0]),
+     "peak": round(f["sov_oas"].max()), "mean": round(f["sov_oas"].mean()),
+     "range": round(f["sov_oas"].max() - f["sov_oas"].min()),
+     "calm mean": round(calm_s["sov_oas"].dropna().mean())},
+]).set_index("Measure")
+save(fis, "tbl_sovereign_fiscal24.csv")
+print("\n  Fiscal24 (2024-11-01 to 2025-01-31), bps:")
+print(fis.to_string())
+
 print("\n" + "=" * 78)
 print(f"  Wrote {len(tables)} tables to outputs/")
 print("=" * 78)

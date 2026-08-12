@@ -28,13 +28,14 @@ project/
 │   └── metrics.py     # Inference, Forbes-Rigobon, copulas, DCC, DR/ENB/PC1, VaR
 ├── tests/
 │   ├── test_metrics.py          # 31 unit tests for the estimators
-│   ├── test_paper_consistency.py # 79 tests: paper + README numbers vs outputs/
-│   └── test_global_data.py       # 17 tests for the cross-country construction
+│   ├── test_paper_consistency.py # 84 tests: paper + README numbers vs outputs/
+│   ├── test_global_data.py       # 17 tests for the cross-country construction
+│   └── test_sovereign.py         # 12 tests for the sovereign series + ffill guard
 ├── scripts/
 │   ├── run_analysis.py          # Sections 4-8 -> outputs/tbl_*.csv
 │   ├── run_global_analysis.py   # Section 9    -> outputs/tbl_global_*.csv
 │   └── build_notebooks.py       # generates notebooks 01-08
-├── .github/workflows/tests.yml  # CI: the 48 estimator tests on every push and PR
+├── .github/workflows/tests.yml  # CI: the 60 estimator tests on every push and PR
 └── outputs/          # All charts/tables for the paper
 ```
 

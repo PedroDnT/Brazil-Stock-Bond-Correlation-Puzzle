@@ -23,7 +23,7 @@ python3 src/fetch.py
 python3 scripts/run_analysis.py          # Sections 4-8  (Brazil)
 python3 scripts/run_global_analysis.py   # Section 9     (cross-country panel)
 
-# 3. Verify: 127 tests, 79 of which pin the paper's and README's numbers to the tables
+# 3. Verify: 144 tests, 84 of which pin the paper's and README's numbers to the tables
 python3 -m pytest tests/ -q
 
 # 4. (optional) Generate and execute the notebooks for the figures
@@ -34,9 +34,10 @@ for nb in 01_data 02_descriptive 03_rolling_corr 04_dcc_garch 05_copula 06_portf
 done
 ```
 
-CI runs the 48 estimator tests on every push and pull request. The 79 consistency
-tests are not in CI: they read `outputs/`, which is gitignored and regenerates from
-live BCB, IPEADATA, Tesouro and FRED calls, so they run locally after step 1.
+CI runs the 60 estimator and ingestion tests on every push and pull request. The 84
+consistency tests are not in CI: they read `outputs/`, which is gitignored and
+regenerates from live BCB, IPEADATA, Tesouro and FRED calls, so they run locally
+after step 1.
 
 ## Data sources (all free, all public)
 
@@ -48,6 +49,8 @@ live BCB, IPEADATA, Tesouro and FRED calls, so they run locally after step 1.
 | NTN-B, LTN, NTN-F, LFT prices and yields | Tesouro Transparente | `PrecoTaxaTesouroDireto.csv` |
 | Equity index, 4 advanced economies | FRED (OECD-harmonised) | `SPASTT01<CC>M661N` |
 | 10y government bond yield, 4 advanced economies | FRED (OECD-harmonised) | `IRLTLT01<CC>M156N` |
+| ICE BofA Latin America OAS (bps) | FRED | `BAMLEMRLCRPILAOAS` (starts Aug 2023) |
+| US 10y Treasury | FRED | `DGS10` |
 
 **No API key is required.** The cross-country panel uses FRED's public CSV endpoint, so
 the whole study runs from a clean checkout.
@@ -86,6 +89,8 @@ the one country where a unit-price construction is also available, and the two a
 | Empirical lower-tail dependence (5%) | 0.143 vs 0.050 under independence (38 co-crashes vs 13.3) |
 | COVID crisis ρ, raw → Forbes-Rigobon adjusted | +0.370 → +0.124 |
 | Joesley Day ρ, raw → adjusted | +0.843 → +0.580 (the one real contagion episode) |
+| Fiscal24: Brazil−US 10y differential | 843 → 1,083 bps, a **253 bp** intra-window range |
+| Fiscal24: hard-currency credit spread (LatAm OAS) | moved **25 bps**, and stayed below its calm average |
 | NTN-B excess return over CDI, GFC | **+5.8pp** — bonds cushioned the drawdown |
 | 60/40 excess over CDI, GFC | −20.0pp |
 | 60/40 99% 10-day VaR, calm → COVID | 7.5% → 20.9% |
@@ -103,6 +108,12 @@ The headline: Brazilian bonds are **diversifiers but not hedges**. The correlati
 never reliably negative in any regime or at any horizon — that floor, not a crisis-time
 spike, is what distinguishes Brazil. Most apparent crisis correlation spikes do not
 survive the Forbes-Rigobon volatility adjustment.
+
+On the sovereign channel: EMBI+ Brazil was discontinued in July 2024, before the
+Fiscal24 window opens, and no free Brazil-specific replacement exists. Section 6.1
+scores the two series that do continue against EMBI rather than substituting either
+silently, and they disagree about Fiscal24 in a way that is itself the result —
+local-currency risk repriced by 253 bps while hard-currency credit moved 25.
 
 On the matched panel, the IMF's advanced-economy finding replicates: all four lost a
 significantly negative stock-bond correlation and none has become significantly positive
@@ -132,7 +143,7 @@ and regenerate from source.
 
 ```
 .github/workflows/
-  tests.yml               # CI: the 48 estimator tests
+  tests.yml               # CI: the 60 estimator and ingestion tests
 src/
   fetch.py                # Brazilian data (BCB, IPEADATA, Tesouro) + validation
   global_data.py          # Matched cross-country panel (FRED, keyless) + validation
@@ -140,7 +151,8 @@ src/
 tests/
   test_metrics.py             # 31 unit tests for the estimators
   test_global_data.py         # 17 tests for the bond construction and retry logic
-  test_paper_consistency.py   # 79 tests: every number in the paper and README vs outputs/
+  test_sovereign.py           # 12 tests for the sovereign series and the ffill guard
+  test_paper_consistency.py   # 84 tests: every number in the paper and README vs outputs/
 scripts/
   run_analysis.py         # Sections 4-8 -> outputs/tbl_*.csv
   run_global_analysis.py  # Section 9    -> outputs/tbl_global_*.csv

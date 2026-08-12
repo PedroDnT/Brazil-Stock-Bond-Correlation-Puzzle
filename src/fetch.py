@@ -6,6 +6,8 @@ Sources (all free, all public):
   - IPEADATA OData      : Ibovespa daily close, EMBI+ Brazil sovereign spread
   - Tesouro Transparente: NTN-B / LTN / NTN-F / LFT daily PU
                           -> constant-maturity total-return series
+  - FRED (keyless CSV)  : US 10y Treasury, ICE BofA Latin America OAS
+                          -> the two sovereign-risk series that outlive EMBI
 
 Bond construction
 -----------------
@@ -58,6 +60,24 @@ def get_with_retry(url, tries=5, timeout=180, backoff=3.0, **kwargs):
             print(f"    retry {attempt + 1}/{tries - 1} in {wait:.0f}s ({type(last).__name__})")
             time.sleep(wait)
     raise last
+
+
+FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+
+
+def fetch_fred_csv(series_id, timeout=90):
+    """Fetch one FRED series via the public CSV endpoint. No API key required."""
+    r = get_with_retry(FRED_CSV, timeout=timeout, params={"id": series_id})
+    text = r.text
+    if text.lstrip().startswith("<"):
+        raise ValueError(f"FRED returned HTML for {series_id} — series does not exist")
+    df = pd.read_csv(io.StringIO(text))
+    date_col = df.columns[0]
+    df[date_col] = pd.to_datetime(df[date_col])
+    s = pd.to_numeric(df[df.columns[1]], errors="coerce")
+    s.index = df[date_col]
+    s.name = series_id
+    return s.dropna()
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent.parent
@@ -194,6 +214,47 @@ def _ipeadata(sercodigo):
     v["d"] = pd.to_datetime(v["VALDATA"].str.slice(0, 10))
     s = v.set_index("d")["VALVALOR"].astype(float).dropna().sort_index()
     return s[~s.index.duplicated(keep="last")]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Sovereign risk after EMBI
+# ═════════════════════════════════════════════════════════════════════════════
+# EMBI+ Brazil is the paper's measure of the sovereign-credit channel and IPEADATA
+# discontinued it in July 2024 — its metadata catalogue lists exactly one
+# sovereign-risk series and marks it INATIVA, so there is no drop-in replacement.
+# Two free series carry the channel past that date, and neither is EMBI:
+#
+#   sov_oas   ICE BofA Latin America corporate/sovereign OAS. A genuine
+#             option-adjusted hard-currency credit spread, so it measures the same
+#             thing EMBI did, but it is regional rather than Brazil-specific and
+#             its history starts 2023-08-14.
+#   yld_diff  Brazil 10y (NTN-F) minus US 10y. Spans the whole sample but is NOT a
+#             credit spread: it bundles credit with the currency and monetary-policy
+#             differential. COVID shows why they are not interchangeable — EMBI
+#             widened while this narrowed, because Brazil cut Selic to 2%.
+#
+# Both are reported; neither is presented as a continuation of EMBI.
+SOVEREIGN_SERIES = {
+    "us10y":   "DGS10",                 # US 10y constant maturity, % p.a.
+    "lat_oas": "BAMLEMRLCRPILAOAS",     # ICE BofA Latin America OAS, %
+}
+
+
+def fetch_sovereign(force=False):
+    cache = RAW_DIR / "sovereign.csv"
+    if cache.exists() and not force:
+        print("  Sovereign risk: loaded from cache")
+        return pd.read_csv(cache, index_col=0, parse_dates=True)
+    print("Fetching sovereign-risk series from FRED (no API key)...")
+    out = {}
+    for name, sid in SOVEREIGN_SERIES.items():
+        s = fetch_fred_csv(sid)
+        out[name] = s
+        print(f"  {name:8s} ({sid}): {len(s):>5} obs  "
+              f"{s.index.min().date()} to {s.index.max().date()}")
+    df = pd.DataFrame(out).sort_index()
+    df.to_csv(cache)
+    return df
 
 
 def fetch_ipeadata(force=False):
@@ -359,6 +420,7 @@ def build_master_returns(start=START, force_rebuild=False):
     ipea    = fetch_ipeadata(force=force_rebuild)
     tesouro = fetch_tesouro(force=force_rebuild)
     bonds   = build_bond_returns(tesouro, force=force_rebuild)
+    sov     = fetch_sovereign(force=force_rebuild)
 
     ibov     = ipea["ibov"].dropna()
     ibov_ret = np.log(ibov / ibov.shift(1)).dropna().rename("ibov")
@@ -378,14 +440,27 @@ def build_master_returns(start=START, force_rebuild=False):
         bcb["selic"].rename("selic"),
         bcb["ipca"].rename("ipca"),
         bcb["brl_usd"].rename("brl_usd"),
+        (sov["lat_oas"] * 100).rename("sov_oas"),      # bps, ICE BofA Latin America
+        (sov["us10y"] * 100).rename("us10y"),          # bps
     ], axis=1)
 
     master = ret.join(levels, how="left")
     master = master[(master.index >= start) & (master.index <= SAMPLE_END)].sort_index()
     # keep only days on which the equity market and at least one bond traded
     master = master.dropna(subset=["ibov"], how="all")
-    master[["embi", "cdi_level", "selic", "ipca", "brl_usd"]] = \
-        master[["embi", "cdi_level", "selic", "ipca", "brl_usd"]].ffill()
+    master[["cdi_level", "selic", "ipca", "brl_usd", "sov_oas", "us10y"]] = \
+        master[["cdi_level", "selic", "ipca", "brl_usd", "sov_oas", "us10y"]].ffill()
+
+    # EMBI is forward-filled only WITHIN its published span. Filling past the July
+    # 2024 discontinuation froze it at 228 bps for 501 trading days — a flat line
+    # across the whole Fiscal24 window, where a reader would take it for data.
+    embi_end = master["embi"].last_valid_index()
+    master["embi"] = master["embi"].ffill()
+    if embi_end is not None:
+        master.loc[master.index > embi_end, "embi"] = np.nan
+
+    # Brazil 10y minus US 10y, in bps. Not a credit spread — see SOVEREIGN_SERIES.
+    master["yld_diff"] = master["ntnf_yield"] * 10000 - master["us10y"]
 
     # "Calm", not "None": pandas.read_csv treats the literal string "None" as NaN by
     # default, which silently empties any `crisis == "None"` mask on reload.
@@ -468,9 +543,36 @@ def validate_master(master, verbose=True):
         ok = len(e) > 3000 and e.median() > 100
         if verbose:
             print(f"  {'embi':10s} {len(e):6d} {'':9s} {'':9s}   "
-                  f"median {e.median():.0f} bps {'OK' if ok else 'NOT A SPREAD'}")
+                  f"median {e.median():.0f} bps, ends {e.index[-1].date()} "
+                  f"{'OK' if ok else 'NOT A SPREAD'}")
         if not ok:
             fails.append(f"embi median {e.median():.2f} — not a bps spread")
+
+        # The whole point of dropping the ffill: EMBI must not run to the sample end
+        # with a frozen value. A long flat tail means the guard has regressed.
+        tail = e.tail(60)
+        if tail.nunique() <= 1:
+            fails.append(f"embi ends in {len(tail)} identical values — stale ffill is back")
+
+    # The two series that carry the sovereign channel past EMBI
+    if "sov_oas" in master:
+        o = master["sov_oas"].dropna()
+        ok = len(o) > 200 and 50 < o.median() < 1500
+        if verbose:
+            print(f"  {'sov_oas':10s} {len(o):6d} {'':9s} {'':9s}   "
+                  f"median {o.median():.0f} bps, from {o.index[0].date()} "
+                  f"{'OK' if ok else 'OUT OF BAND'}")
+        if not ok:
+            fails.append(f"sov_oas median {o.median():.0f} bps implausible")
+
+    if "yld_diff" in master:
+        d = master["yld_diff"].dropna()
+        ok = len(d) > 3000 and 0 < d.median() < 3000
+        if verbose:
+            print(f"  {'yld_diff':10s} {len(d):6d} {'':9s} {'':9s}   "
+                  f"median {d.median():.0f} bps {'OK' if ok else 'OUT OF BAND'}")
+        if not ok:
+            fails.append(f"yld_diff median {d.median():.0f} bps implausible")
 
     # LFT must track CDI
     if {"lft", "cdi_ret"} <= set(master.columns):
