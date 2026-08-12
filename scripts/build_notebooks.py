@@ -4,6 +4,8 @@ Generates all study notebooks as .ipynb files.
 Run once: python3 build_notebooks.py
 """
 
+import hashlib
+
 import nbformat as nbf
 from pathlib import Path
 
@@ -15,10 +17,24 @@ def md(text):   return nbf.v4.new_markdown_cell(text.strip())
 def code(text): return nbf.v4.new_code_cell(text.strip())
 def nb(*cells): n = nbf.v4.new_notebook(); n.cells = list(cells); return n
 
+
+def _stable_ids(notebook, name):
+    """
+    nbformat assigns a random id to every cell, so regenerating unchanged notebooks
+    produced an 8-file diff of nothing but ids -- which buries real changes. Derive
+    the id from the notebook name, the cell's position and its source instead, so
+    the output is a pure function of the input.
+    """
+    for i, cell in enumerate(notebook.cells):
+        digest = hashlib.sha256(f"{name}:{i}:{cell.source}".encode()).hexdigest()
+        cell.id = digest[:8]
+    return notebook
+
+
 def save(notebook, name):
     path = NB_DIR / name
     with open(path, "w") as f:
-        nbf.write(notebook, f)
+        nbf.write(_stable_ids(notebook, name), f)
     print(f"  Saved {name}")
 
 

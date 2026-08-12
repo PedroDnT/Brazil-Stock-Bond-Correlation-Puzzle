@@ -1,6 +1,19 @@
 # Stock-bond diversification in Brazil: a different beast entirely
 
-**Brazilian stocks and bonds overwhelmingly sell off together during crises, making the 60/40 portfolio far less effective than in advanced economies.** While the IMF's February 2026 study documents this breakdown as a post-2020 phenomenon for the US, Germany, Japan, and the UK, Brazil has lived with persistently positive stock-bond correlations for decades — driven by fiscal dominance, sovereign credit risk, and the unique structure of its domestic debt market. This report replicates and extends the IMF framework for Brazil, identifies data sources for quantitative implementation, documents regime-specific correlation dynamics, and explains why the country's floating-rate LFT bonds, commodity-heavy equity index, and recurring fiscal crises create a fundamentally different diversification landscape.
+> **Status: background, written before the empirical work.** This is a literature and
+> data-source survey that motivated the study. Its sourcing and framing stand; several of
+> its *expectations* were tested and revised by the results, and it has been left as
+> written rather than retrofitted. Where it and [the paper](04_final_paper.md) disagree,
+> the paper is the finding. Specifically:
+>
+> | This document expected | The study found |
+> |---|---|
+> | Stocks and bonds "overwhelmingly sell off together during crises" | Most crisis correlation spikes are volatility artefacts; after the Forbes-Rigobon adjustment only Joesley Day shows contagion (§6) |
+> | Bonds "almost always fall with stocks during crises" | Bonds cushioned four of six episodes — NTN-B returned **+5.8pp** over CDI during the GFC (§8.2) |
+> | Sustained negative correlation in 2003–2007 and 2016–2019 | **No regime** has a negative correlation; the lowest is Lula Boom at +0.037, and no regime is statistically distinguishable from any other (§4.2) |
+> | The IMF finding represents convergence toward Brazil | Directionally unanimous (4 of 4) but significant in only one country; "defensible as a direction and premature as a finding" (§9.3) |
+
+Brazil has lived with persistently positive stock-bond correlations for decades — driven by fiscal dominance, sovereign credit risk, and the unique structure of its domestic debt market. While the IMF's February 2026 study documents diversification breakdown as a post-2020 phenomenon for the US, Germany, Japan, and the UK, this report replicates and extends the IMF framework for Brazil, identifies data sources for quantitative implementation, documents regime-specific correlation dynamics, and explains why the country's floating-rate LFT bonds, commodity-heavy equity index, and recurring fiscal crises create a fundamentally different diversification landscape.
 
 ---
 

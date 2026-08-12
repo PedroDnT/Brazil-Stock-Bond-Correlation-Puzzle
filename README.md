@@ -23,7 +23,7 @@ python3 src/fetch.py
 python3 scripts/run_analysis.py          # Sections 4-8  (Brazil)
 python3 scripts/run_global_analysis.py   # Section 9     (cross-country panel)
 
-# 3. Verify: 144 tests, 84 of which pin the paper's and README's numbers to the tables
+# 3. Verify: 155 tests, 84 of which pin the paper's and README's numbers to the tables
 python3 -m pytest tests/ -q
 
 # 4. (optional) Generate and execute the notebooks for the figures
@@ -34,10 +34,10 @@ for nb in 01_data 02_descriptive 03_rolling_corr 04_dcc_garch 05_copula 06_portf
 done
 ```
 
-CI runs the 60 estimator and ingestion tests on every push and pull request. The 84
-consistency tests are not in CI: they read `outputs/`, which is gitignored and
-regenerates from live BCB, IPEADATA, Tesouro and FRED calls, so they run locally
-after step 1.
+CI runs the 71 network-free tests on every push and pull request. The 84 consistency
+tests are not in CI: they read `outputs/`, which is
+gitignored and regenerates from live BCB, IPEADATA, Tesouro and FRED calls, so they
+run locally after step 1.
 
 ## Data sources (all free, all public)
 
@@ -123,6 +123,23 @@ moved toward Brazil, but only Germany's narrowing is statistically significant, 
 correlation never went below zero in two decades; every advanced economy spent time
 below −0.45.
 
+## What this study does not establish
+
+Kept short and in the open, because the interesting parts of a replication are usually
+its edges. Full list with reasoning in the
+[implementation guide](docs/03_implementation_guide.md#known-limitations-and-open-work);
+the paper's own Limitations paragraph covers the same ground for a reader.
+
+| Gap | Why it is open |
+|-----|----------------|
+| **No single sovereign-spread series spans the sample** | EMBI ends Jul 2024, its hard-currency replacement starts Aug 2023 and is regional, and the differential that does span the sample is not a credit spread. A Brazil 5y CDS would close it; it is not free. |
+| **Regimes are imposed, not estimated** | Boundaries come from political economy. A Markov-switching estimate might find no distinct regimes at all — which Table 4 already hints at. |
+| **The 2020 break date is imported from the IMF note** | Not estimated from the data, so the convergence test is not self-contained. |
+| **Convergence is a direction, not a result** | 4 of 4 narrowed, 1 of 4 significantly. Four correlated bond markets are ~1–2 independent observations. |
+| **Bonds are retail reference prices** | Tesouro Direto, not ANBIMA institutional quotes. Realised tenor drifts 0.74y (NTN-B) / 1.11y (NTN-F). |
+| **Three earlier-draft claims stay unreproduced** | Real policy rate vs G7, real-rate convergence, news sentiment — they rested on a notebook that had never run. See §9.5. |
+| **The 84 consistency tests are not in CI** | They need generated `outputs/`, i.e. live network calls. Closing this means committing a pinned data snapshot. |
+
 ## Outputs
 
 `scripts/run_analysis.py` writes the paper's tables as `outputs/tbl_*.csv`. The
@@ -132,18 +149,22 @@ and regenerate from source.
 
 ## Documentation series
 
-| # | Document | Description |
+Read 4 for the findings and 3 for the code. Documents 1 and 2 were written **before**
+the empirical work and are background, not results — each carries a header noting where
+its expectations were revised by what the study actually found.
+
+| # | Document | What it is |
 |---|----------|-------------|
-| 1 | [Stock-Bond Diversification](docs/01_stock_bond_diversification.md) | Why Brazil's correlation dynamics diverge from developed markets |
-| 2 | [Quantifying Hidden Correlation Risk](docs/02_quantifying_hidden_correlation_risk.md) | Methods to detect, measure, and monitor hidden risk |
-| 3 | [Implementation Guide](docs/03_implementation_guide.md) | Notebook architecture and data pipeline |
-| 4 | [Final Paper](docs/04_final_paper.md) | Full research paper |
+| 1 | [Stock-Bond Diversification](docs/01_stock_bond_diversification.md) | Background: why Brazil's correlation dynamics diverge, and the data landscape |
+| 2 | [Quantifying Hidden Correlation Risk](docs/02_quantifying_hidden_correlation_risk.md) | Background: the estimators, what they assume, and when they mislead |
+| 3 | [Implementation Guide](docs/03_implementation_guide.md) | **The pipeline as built** — architecture, data traps, and open work |
+| 4 | [Final Paper](docs/04_final_paper.md) | **The study** — full research paper |
 
 ## Project structure
 
 ```
 .github/workflows/
-  tests.yml               # CI: the 60 estimator and ingestion tests
+  tests.yml               # CI: the 71 network-free tests
 src/
   fetch.py                # Brazilian data (BCB, IPEADATA, Tesouro) + validation
   global_data.py          # Matched cross-country panel (FRED, keyless) + validation
@@ -152,6 +173,7 @@ tests/
   test_metrics.py             # 31 unit tests for the estimators
   test_global_data.py         # 17 tests for the bond construction and retry logic
   test_sovereign.py           # 12 tests for the sovereign series and the ffill guard
+  test_docs.py                # 11 tests: the docs describe the pipeline that exists
   test_paper_consistency.py   # 84 tests: every number in the paper and README vs outputs/
 scripts/
   run_analysis.py         # Sections 4-8 -> outputs/tbl_*.csv
