@@ -184,6 +184,7 @@ its expectations were revised by what the study actually found.
 ```
 .github/workflows/
   tests.yml               # CI: the 78 network-free tests
+  pages.yml               # GitHub Pages: rebuilds and deploys site/
 src/
   fetch.py                # Brazilian data (BCB, IPEADATA, Tesouro) + validation
   global_data.py          # Matched cross-country panel (FRED, keyless) + validation
